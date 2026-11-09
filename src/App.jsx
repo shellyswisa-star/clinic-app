@@ -110,7 +110,6 @@ export default function ClinicBookingApp() {
     return Object.keys(errors).length === 0;
   };
 
-  // בדיקה האם משמרת ספציפית תפוסה בתאריך מסוים
   const isShiftTaken = (dateStr, shiftStr) => {
     if (!dateStr) return false;
 
