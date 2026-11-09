@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+@import url('https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;800&family=Amatic+SC:wght@700&display=swap');
+
+body {
+  font-family: 'Assistant', sans-serif;
+  background-color: #fdfbf7; /* רקע חם בגוון שמנת-חול */
+}
+
+.title-handwritten {
+  font-family: 'Amatic SC', cursive;
+  letter-spacing: 0px;
+}
