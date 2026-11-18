@@ -67,6 +67,35 @@ export default function ClinicBookingApp() {
     fetchBookings();
   }, []);
 
+  const handleCancelCurrentBooking = async () => {
+    if (!currentBookingId) return;
+
+    const id = currentBookingId;
+    setCurrentBookingId(null);
+
+    const { data: deleted, error: deleteError } = await supabase
+      .from('bookings')
+      .delete()
+      .eq('id', id)
+      .select();
+
+    // בלי מדיניות DELETE, סופבייס מחזיר הצלחה בלי למחוק שורה
+    if (deleteError || !deleted?.length) {
+      const { data: updated, error: updateError } = await supabase
+        .from('bookings')
+        .update({ status: 'cancelled' })
+        .eq('id', id)
+        .select();
+
+      if (updateError || !updated?.length) {
+        console.error('שגיאה בביטול השריון הזמני:', deleteError || updateError);
+        alert('לא הצלחנו לשחרר את המשמרת. בסופבייס חסרה הרשאת מחיקה או עדכון לטבלת bookings.');
+      }
+    }
+
+    await fetchBookings();
+  };
+
   const fetchBookings = async () => {
     try {
       const { data, error } = await supabase.from('bookings').select('*');
@@ -114,9 +143,14 @@ export default function ClinicBookingApp() {
     if (!dateStr) return false;
 
     const isTakenInDb = existingBookings.some((booking) => {
+      const isPaid = booking.status === 'paid';
+      // משמרת תפוסה אם שולמה או אם נוצרה ב-10 דקות האחרונות וטרם שוחררה
+      const isRecentReserved = booking.status === 'reserved' && 
+        (new Date() - new Date(booking.created_at)) < 10 * 60 * 1000;
+
       return booking.selected_date === dateStr && 
              (booking.selected_shift === shiftStr || booking.selected_shift === 'full-day' || shiftStr === 'full-day') &&
-             booking.status !== 'cancelled';
+             (isPaid || isRecentReserved);
     });
 
     const dateObj = new Date(dateStr);
@@ -570,9 +604,12 @@ export default function ClinicBookingApp() {
             <form onSubmit={handleReserveBooking} className="space-y-4 text-right">
               <button 
                 type="button"
-                onClick={() => setStep(2)} 
+                onClick={async () => {
+                  await handleCancelCurrentBooking();
+                  setStep(2);
+                }}
                 className="text-xs font-semibold text-[#8c5e47] hover:underline flex items-center gap-1 cursor-pointer"
-              >
+              > 
                 ← חזרה לבחירת זמנים ({selectedPlan?.title})
               </button>
 
@@ -677,7 +714,10 @@ export default function ClinicBookingApp() {
             <form onSubmit={handlePaymentSuccess} className="space-y-4 text-right">
               <button 
                 type="button"
-                onClick={() => setStep(3)} 
+                onClick={async () => {
+                  await handleCancelCurrentBooking();
+                  setStep(3);
+                }}
                 className="text-xs font-semibold text-[#8c5e47] hover:underline flex items-center gap-1 cursor-pointer"
               >
                 ← חזרה לעריכת פרטים
