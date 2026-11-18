@@ -489,9 +489,9 @@ export default function ClinicBookingApp() {
                     <label className="block text-xs font-bold text-[#5c4a45]">1. בחרי היקף ימים בשבוע:</label>
                     <div className="grid grid-cols-3 gap-2">
                       {[
-                        { days: 3, label: '3 ימים (1,300 ₪)' },
-                        { days: 4, label: '4 ימים (1,800 ₪)' },
-                        { days: 5, label: '5 ימים (2,000 ₪)' }
+                        { days: 3, label: '3 ימים (2,200 ₪)' },
+                        { days: 4, label: '4 ימים (2,800 ₪)' },
+                        { days: 5, label: '5 ימים (3,500 ₪)' }
                       ].map((item) => (
                         <button
                           key={item.days}
