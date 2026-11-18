@@ -13,16 +13,16 @@ const PLANS = [
   { 
     id: 'session', 
     title: 'ססיה שבועית (משמרת קבועה)', 
-    price: 500,
-    priceDisplay: '500 ₪ / חודש', 
+    price: 800, // <--- עדכון המחיר ל-800
+    priceDisplay: '800 ₪ / חודש', // <--- עדכון תצוגת המחיר
     badge: 'הכי מבוקש',
     desc: 'משמרת קבועה אחת לשבוע בכל שבוע לאורך החודש (4 משמרות בחודש).' 
   },
   { 
     id: 'hourly', 
     title: 'השכרה שעתית גמישה', 
-    price: 65,
-    priceDisplay: '65 ₪ / שעה', 
+    price: 60,
+    priceDisplay: '60 ₪ / שעה', 
     desc: 'הזמנת משמרת בודדת (4 שעות) לפי דרישה למועד מסוים.' 
   },
   { 
@@ -30,13 +30,13 @@ const PLANS = [
     title: 'השכרה יומית חד-פעמית', 
     price: 500,
     priceDisplay: '500 ₪ / יום', 
-    desc: 'יום עבודה מלא ופרטי (09:00 - 18:00) בתאריך בודד.' 
+    desc: 'יום עבודה מלא ופרטי (08:00 - 20:00) בתאריך בודד.' 
   },
   { 
     id: 'monthly', 
     title: 'השכרה חודשית קבועה', 
-    price: 1300,
-    priceDisplay: 'החל מ-1,300 ₪ / חודש', 
+    price: 2200,
+    priceDisplay: 'החל מ-2,200 ₪ / חודש', 
     desc: 'שריון 3-5 ימים קבועים בשבוע למשך חודש עד חצי שנה.' 
   },
 ];
@@ -80,9 +80,9 @@ export default function ClinicBookingApp() {
   const calculateTotalPrice = () => {
     if (!selectedPlan) return 0;
     if (selectedPlan.id === 'monthly') {
-      if (selectedSubPlanDays === 3) return 1300;
-      if (selectedSubPlanDays === 4) return 1800;
-      if (selectedSubPlanDays === 5) return 2000;
+      if (selectedSubPlanDays === 3) return 2200;
+      if (selectedSubPlanDays === 4) return 2800;
+      if (selectedSubPlanDays === 5) return 3500;
     }
     if (selectedPlan.id === 'hourly') {
       return 260;
