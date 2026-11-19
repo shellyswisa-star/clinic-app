@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
@@ -37,17 +37,21 @@ export default function AdminDashboard({ session, onLogout }) {
   const [isSaving, setIsSaving] = useState(false);
   const [notice, setNotice] = useState('');
 
+  const loadBookings = async () => {
+    const { data, error: fetchError } = await supabase
+      .from('bookings')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (fetchError) throw fetchError;
+    return data || [];
+  };
+
   const fetchBookings = async () => {
     setLoading(true);
     setError('');
     try {
-      const { data, error: fetchError } = await supabase
-        .from('bookings')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (fetchError) throw fetchError;
-      setBookings(data || []);
+      setBookings(await loadBookings());
     } catch (err) {
       setError(err.message || 'לא הצלחנו לטעון הזמנות');
     } finally {
@@ -56,7 +60,22 @@ export default function AdminDashboard({ session, onLogout }) {
   };
 
   useEffect(() => {
-    fetchBookings();
+    let cancelled = false;
+
+    loadBookings()
+      .then((rows) => {
+        if (!cancelled) setBookings(rows);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.message || 'לא הצלחנו לטעון הזמנות');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const filteredBookings = useMemo(() => {

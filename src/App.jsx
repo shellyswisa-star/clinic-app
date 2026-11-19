@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 
 const CLINIC_INFO = {
@@ -63,8 +63,38 @@ export default function ClinicBookingApp() {
   const [existingBookings, setExistingBookings] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
 
+  const loadBookings = async () => {
+    const { data, error } = await supabase.from('bookings').select('*');
+    if (error) {
+      console.error('Error fetching bookings:', error);
+      return null;
+    }
+    return data;
+  };
+
+  const fetchBookings = async () => {
+    try {
+      const data = await loadBookings();
+      if (data) setExistingBookings(data);
+    } catch (err) {
+      console.error('Failed to connect to Supabase:', err);
+    }
+  };
+
   useEffect(() => {
-    fetchBookings();
+    let cancelled = false;
+
+    loadBookings()
+      .then((data) => {
+        if (!cancelled && data) setExistingBookings(data);
+      })
+      .catch((err) => {
+        if (!cancelled) console.error('Failed to connect to Supabase:', err);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleCancelCurrentBooking = async () => {
@@ -94,16 +124,6 @@ export default function ClinicBookingApp() {
     }
 
     await fetchBookings();
-  };
-
-  const fetchBookings = async () => {
-    try {
-      const { data, error } = await supabase.from('bookings').select('*');
-      if (error) console.error('Error fetching bookings:', error);
-      else if (data) setExistingBookings(data);
-    } catch (err) {
-      console.error('Failed to connect to Supabase:', err);
-    }
   };
 
   const calculateTotalPrice = () => {
