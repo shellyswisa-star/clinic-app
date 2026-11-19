@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { supabase } from './supabaseClient';
 
 export default function OrderCheckout() {
@@ -14,7 +14,7 @@ export default function OrderCheckout() {
     setErrorMessage('');
 
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('orders')
         .insert([
           { 

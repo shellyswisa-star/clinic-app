@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from './supabaseClient';
 import {
   CLINIC_INFO,
@@ -8,6 +8,11 @@ import {
   calcPlanTotal,
   isSlotBlocked,
 } from './clinicConfig';
+import {
+  canStartSave,
+  isShiftTaken as checkShiftTaken,
+  validateBookingForm,
+} from './lib/bookingRules';
 
 export default function ClinicBookingApp() {
   const [selectedPlan, setSelectedPlan] = useState(null);
@@ -117,53 +122,23 @@ export default function ClinicBookingApp() {
   };
   
   const validateForm = () => {
-    const errors = {};
-    if (!formData.name.trim()) {
-      errors.name = 'נא להזין שם מלא';
-    } else if (formData.name.trim().length < 2) {
-      errors.name = 'השם חייב להכיל לפחות 2 תווים';
-    }
-
-    const phoneClean = formData.phone.replace(/[- ]/g, '');
-    const phoneRegex = /^0[2-9]\d{7,8}$/;
-    if (!phoneClean) {
-      errors.phone = 'נא להזין מספר טלפון';
-    } else if (!phoneRegex.test(phoneClean)) {
-      errors.phone = 'מספר טלפון אינו תקין (לדוגמה: 0501234567)';
-    }
-
+    const { ok, errors } = validateBookingForm(formData);
     setFormErrors(errors);
-    return Object.keys(errors).length === 0;
+    return ok;
   };
 
-  const isShiftTaken = (dateStr, shiftStr) => {
-    if (!dateStr) return false;
-
-    const isTakenInDb = existingBookings.some((booking) => {
-      const isPaid = booking.status === 'paid';
-      // משמרת תפוסה אם שולמה או אם נוצרה ב-10 דקות האחרונות וטרם שוחררה
-      const isRecentReserved = booking.status === 'reserved' && 
-        (new Date() - new Date(booking.created_at)) < 10 * 60 * 1000;
-
-      return booking.selected_date === dateStr && 
-             (booking.selected_shift === shiftStr || booking.selected_shift === 'full-day' || shiftStr === 'full-day') &&
-             (isPaid || isRecentReserved);
-    });
-
-    const dateObj = new Date(dateStr);
-    const dayOfWeek = dateObj.getDay();
-    const isTakenInBlocks = isSlotBlocked(blockedSlots, {
+  const isShiftTaken = (dateStr, shiftStr) =>
+    checkShiftTaken({
       dateStr,
-      dayIndex: dayOfWeek,
-      shift: shiftStr,
+      shiftStr,
+      existingBookings,
+      blockedSlots,
     });
-
-    return isTakenInDb || isTakenInBlocks;
-  };
 
   const handleReserveBooking = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
+    if (!canStartSave({ isSaving })) return;
 
     if (isShiftTaken(selectedDate, selectedShift)) {
       alert('⚠️ המשמרת שבחרת כבר תפוסה!');
@@ -214,6 +189,7 @@ export default function ClinicBookingApp() {
 
   const handlePaymentSuccess = async (e) => {
     e.preventDefault();
+    if (!canStartSave({ isSaving })) return;
     setIsSaving(true);
 
     try {

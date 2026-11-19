@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { DAY_NAMES, SHIFT_LABELS } from '../clinicConfig';
 
@@ -37,6 +37,7 @@ export default function AdminBlockedSlots({ onNotice, onError }) {
 
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- טעינה חד־פעמית בכניסה למסך
   }, []);
 
   const handleAdd = async (e) => {

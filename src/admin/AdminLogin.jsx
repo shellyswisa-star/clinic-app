@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { supabase } from '../supabaseClient';
 
 export default function AdminLogin({ onLoggedIn }) {
@@ -38,8 +38,9 @@ export default function AdminLogin({ onLoggedIn }) {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-[#5c4a45] mb-1.5">אימייל</label>
+            <label htmlFor="admin-email" className="block text-xs font-bold text-[#5c4a45] mb-1.5">אימייל</label>
             <input
+              id="admin-email"
               type="email"
               required
               autoComplete="email"
@@ -51,8 +52,9 @@ export default function AdminLogin({ onLoggedIn }) {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-[#5c4a45] mb-1.5">סיסמה</label>
+            <label htmlFor="admin-password" className="block text-xs font-bold text-[#5c4a45] mb-1.5">סיסמה</label>
             <input
+              id="admin-password"
               type="password"
               required
               autoComplete="current-password"

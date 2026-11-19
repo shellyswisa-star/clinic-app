@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { DAY_NAMES, SHIFT_LABELS } from '../clinicConfig';
 
 const WEEKDAY_HEADERS = [...DAY_NAMES, 'יום שישי', 'יום שבת'];
