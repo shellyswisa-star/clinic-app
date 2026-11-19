@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient';
 import { SHIFT_LABELS } from '../clinicConfig';
 import AdminPricing from './AdminPricing.jsx';
 import AdminBlockedSlots from './AdminBlockedSlots.jsx';
+import AdminBookingsCalendar from './AdminBookingsCalendar.jsx';
 
 const STATUS_LABELS = {
   reserved: 'שריון זמני',
@@ -33,10 +34,12 @@ const emptyEdit = {
 export default function AdminDashboard({ session, onLogout }) {
   const [tab, setTab] = useState('bookings');
   const [bookings, setBookings] = useState([]);
+  const [blockedSlots, setBlockedSlots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [search, setSearch] = useState('');
+  const [viewMode, setViewMode] = useState('calendar');
   const [editForm, setEditForm] = useState(emptyEdit);
   const [isSaving, setIsSaving] = useState(false);
   const [notice, setNotice] = useState('');
@@ -45,13 +48,22 @@ export default function AdminDashboard({ session, onLogout }) {
     setLoading(true);
     setError('');
     try {
-      const { data, error: fetchError } = await supabase
-        .from('bookings')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const [{ data, error: fetchError }, blockedRes] = await Promise.all([
+        supabase
+          .from('bookings')
+          .select('*')
+          .order('created_at', { ascending: false }),
+        supabase.from('blocked_slots').select('*'),
+      ]);
 
       if (fetchError) throw fetchError;
       setBookings(data || []);
+
+      if (blockedRes.error) {
+        console.error(blockedRes.error);
+      } else {
+        setBlockedSlots(blockedRes.data || []);
+      }
     } catch (err) {
       setError(err.message || 'לא הצלחנו לטעון הזמנות');
     } finally {
@@ -60,8 +72,8 @@ export default function AdminDashboard({ session, onLogout }) {
   };
 
   useEffect(() => {
-    fetchBookings();
-  }, []);
+    if (tab === 'bookings') fetchBookings();
+  }, [tab]);
 
   const filteredBookings = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -218,6 +230,25 @@ export default function AdminDashboard({ session, onLogout }) {
         {tab === 'bookings' && (
           <>
             <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex gap-1 bg-white border border-[#e8dfd3] rounded-xl p-1">
+                {[
+                  { id: 'calendar', label: 'יומן' },
+                  { id: 'list', label: 'רשימה' },
+                ].map((mode) => (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    onClick={() => setViewMode(mode.id)}
+                    className={`px-3 py-2 rounded-lg text-xs font-bold cursor-pointer ${
+                      viewMode === mode.id
+                        ? 'bg-[#8c5e47] text-white'
+                        : 'text-[#5c4a45] hover:bg-[#f5ebe0]'
+                    }`}
+                  >
+                    {mode.label}
+                  </button>
+                ))}
+              </div>
               <input
                 type="search"
                 value={search}
@@ -335,66 +366,75 @@ export default function AdminDashboard({ session, onLogout }) {
               </form>
             )}
 
-            <div className="bg-[#faf6ef] border border-[#e8dfd3] rounded-2xl overflow-hidden">
-              {loading ? (
-                <p className="p-6 text-sm text-[#8c746c]">טוענת הזמנות...</p>
-              ) : filteredBookings.length === 0 ? (
-                <p className="p-6 text-sm text-[#8c746c]">אין הזמנות להצגה</p>
-              ) : (
-                <ul className="divide-y divide-[#e8dfd3]">
-                  {filteredBookings.map((booking) => (
-                    <li key={booking.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
-                      <div className="space-y-1 text-right">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-bold text-[#3b2a26]">{booking.full_name || 'ללא שם'}</span>
-                          <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${
-                            booking.status === 'paid'
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : booking.status === 'cancelled'
-                                ? 'bg-stone-200 text-stone-600'
-                                : 'bg-amber-100 text-amber-800'
-                          }`}>
-                            {STATUS_LABELS[booking.status] || booking.status}
-                          </span>
+            {loading ? (
+              <p className="p-6 text-sm text-[#8c746c] bg-[#faf6ef] border border-[#e8dfd3] rounded-2xl">טוענת הזמנות...</p>
+            ) : viewMode === 'calendar' ? (
+              <AdminBookingsCalendar
+                bookings={filteredBookings}
+                blockedSlots={blockedSlots}
+                onSelectBooking={openEdit}
+                onCancelBooking={handleCancelBooking}
+              />
+            ) : (
+              <div className="bg-[#faf6ef] border border-[#e8dfd3] rounded-2xl overflow-hidden">
+                {filteredBookings.length === 0 ? (
+                  <p className="p-6 text-sm text-[#8c746c]">אין הזמנות להצגה</p>
+                ) : (
+                  <ul className="divide-y divide-[#e8dfd3]">
+                    {filteredBookings.map((booking) => (
+                      <li key={booking.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+                        <div className="space-y-1 text-right">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-bold text-[#3b2a26]">{booking.full_name || 'ללא שם'}</span>
+                            <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${
+                              booking.status === 'paid'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : booking.status === 'cancelled'
+                                  ? 'bg-stone-200 text-stone-600'
+                                  : 'bg-amber-100 text-amber-800'
+                            }`}>
+                              {STATUS_LABELS[booking.status] || booking.status}
+                            </span>
+                          </div>
+                          <p className="text-xs text-[#8c746c]">
+                            {booking.phone || 'ללא טלפון'}
+                            {booking.profession ? ` · ${booking.profession}` : ''}
+                          </p>
+                          <p className="text-xs text-[#5c4a45]">
+                            {booking.selected_date || 'ללא תאריך'}
+                            {' · '}
+                            {SHIFT_LABELS[booking.selected_shift] || booking.selected_shift || 'ללא משמרת'}
+                            {' · '}
+                            {booking.plan_id || 'ללא מסלול'}
+                            {' · '}
+                            {Number(booking.total_price || 0).toLocaleString()} ₪
+                          </p>
                         </div>
-                        <p className="text-xs text-[#8c746c]">
-                          {booking.phone || 'ללא טלפון'}
-                          {booking.profession ? ` · ${booking.profession}` : ''}
-                        </p>
-                        <p className="text-xs text-[#5c4a45]">
-                          {booking.selected_date || 'ללא תאריך'}
-                          {' · '}
-                          {SHIFT_LABELS[booking.selected_shift] || booking.selected_shift || 'ללא משמרת'}
-                          {' · '}
-                          {booking.plan_id || 'ללא מסלול'}
-                          {' · '}
-                          {Number(booking.total_price || 0).toLocaleString()} ₪
-                        </p>
-                      </div>
 
-                      <div className="flex gap-2 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => openEdit(booking)}
-                          className="px-3 py-2 rounded-xl text-xs font-bold bg-white border border-[#e8dfd3] hover:bg-[#f5ebe0] cursor-pointer"
-                        >
-                          שינוי
-                        </button>
-                        {booking.status !== 'cancelled' && (
+                        <div className="flex gap-2 shrink-0">
                           <button
                             type="button"
-                            onClick={() => handleCancelBooking(booking)}
-                            className="px-3 py-2 rounded-xl text-xs font-bold bg-white border border-red-200 text-red-700 hover:bg-red-50 cursor-pointer"
+                            onClick={() => openEdit(booking)}
+                            className="px-3 py-2 rounded-xl text-xs font-bold bg-white border border-[#e8dfd3] hover:bg-[#f5ebe0] cursor-pointer"
                           >
-                            ביטול
+                            שינוי
                           </button>
-                        )}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+                          {booking.status !== 'cancelled' && (
+                            <button
+                              type="button"
+                              onClick={() => handleCancelBooking(booking)}
+                              className="px-3 py-2 rounded-xl text-xs font-bold bg-white border border-red-200 text-red-700 hover:bg-red-50 cursor-pointer"
+                            >
+                              ביטול
+                            </button>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
           </>
         )}
       </main>
