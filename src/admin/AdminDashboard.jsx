@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
+import { SHIFT_LABELS } from '../clinicConfig';
+import AdminPricing from './AdminPricing.jsx';
+import AdminBlockedSlots from './AdminBlockedSlots.jsx';
 
 const STATUS_LABELS = {
   reserved: 'שריון זמני',
@@ -9,11 +12,11 @@ const STATUS_LABELS = {
   pending: 'ממתין',
 };
 
-const SHIFT_LABELS = {
-  morning: 'בוקר',
-  afternoon: 'אחה״צ',
-  'full-day': 'יום מלא',
-};
+const TABS = [
+  { id: 'bookings', label: 'הזמנות' },
+  { id: 'pricing', label: 'מחירים' },
+  { id: 'blocks', label: 'חסימת משמרות' },
+];
 
 const emptyEdit = {
   id: null,
@@ -28,6 +31,7 @@ const emptyEdit = {
 };
 
 export default function AdminDashboard({ session, onLogout }) {
+  const [tab, setTab] = useState('bookings');
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -175,31 +179,25 @@ export default function AdminDashboard({ session, onLogout }) {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-6 space-y-4">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="חיפוש לפי שם, טלפון או מסלול..."
-            className="flex-1 p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#8c5e47]"
-          />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#8c5e47]"
-          >
-            <option value="all">כל הסטטוסים</option>
-            <option value="reserved">שריון זמני</option>
-            <option value="paid">שולם</option>
-            <option value="cancelled">בוטל</option>
-          </select>
-          <button
-            type="button"
-            onClick={fetchBookings}
-            className="px-4 py-3 rounded-xl text-sm font-bold bg-[#8c5e47] text-white hover:bg-[#724a35] cursor-pointer"
-          >
-            רענון
-          </button>
+        <div className="flex gap-2 flex-wrap">
+          {TABS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => {
+                setTab(item.id);
+                setNotice('');
+                setError('');
+              }}
+              className={`px-4 py-2 rounded-xl text-sm font-bold border cursor-pointer ${
+                tab === item.id
+                  ? 'bg-[#8c5e47] text-white border-[#8c5e47]'
+                  : 'bg-white text-[#5c4a45] border-[#e8dfd3] hover:bg-[#f5ebe0]'
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
         </div>
 
         {notice && (
@@ -209,157 +207,196 @@ export default function AdminDashboard({ session, onLogout }) {
           <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl p-3">{error}</p>
         )}
 
-        {editForm.id && (
-          <form
-            onSubmit={handleSaveEdit}
-            className="bg-[#faf6ef] border border-[#e8dfd3] rounded-2xl p-4 space-y-3 shadow-sm"
-          >
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="font-bold text-[#5c4a45]">עריכת הזמנה</h2>
-              <button type="button" onClick={closeEdit} className="text-xs text-[#8c746c] hover:underline cursor-pointer">
-                סגירה
-              </button>
-            </div>
+        {tab === 'pricing' && (
+          <AdminPricing onNotice={setNotice} onError={setError} />
+        )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {tab === 'blocks' && (
+          <AdminBlockedSlots onNotice={setNotice} onError={setError} />
+        )}
+
+        {tab === 'bookings' && (
+          <>
+            <div className="flex flex-col sm:flex-row gap-3">
               <input
-                required
-                value={editForm.full_name}
-                onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
-                placeholder="שם מלא"
-                className="p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white"
-              />
-              <input
-                required
-                value={editForm.phone}
-                onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                placeholder="טלפון"
-                className="p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white"
-              />
-              <input
-                value={editForm.profession}
-                onChange={(e) => setEditForm({ ...editForm, profession: e.target.value })}
-                placeholder="תחום טיפול"
-                className="p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white"
-              />
-              <input
-                value={editForm.plan_id}
-                onChange={(e) => setEditForm({ ...editForm, plan_id: e.target.value })}
-                placeholder="מסלול (plan_id)"
-                className="p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white"
-              />
-              <input
-                type="date"
-                value={editForm.selected_date}
-                onChange={(e) => setEditForm({ ...editForm, selected_date: e.target.value })}
-                className="p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white"
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="חיפוש לפי שם, טלפון או מסלול..."
+                className="flex-1 p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#8c5e47]"
               />
               <select
-                value={editForm.selected_shift}
-                onChange={(e) => setEditForm({ ...editForm, selected_shift: e.target.value })}
-                className="p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#8c5e47]"
               >
-                <option value="morning">בוקר</option>
-                <option value="afternoon">אחה״צ</option>
-                <option value="full-day">יום מלא</option>
-              </select>
-              <input
-                type="number"
-                value={editForm.total_price}
-                onChange={(e) => setEditForm({ ...editForm, total_price: e.target.value })}
-                placeholder="סכום"
-                className="p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white"
-              />
-              <select
-                value={editForm.status}
-                onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                className="p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white"
-              >
+                <option value="all">כל הסטטוסים</option>
                 <option value="reserved">שריון זמני</option>
                 <option value="paid">שולם</option>
                 <option value="cancelled">בוטל</option>
               </select>
-            </div>
-
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                disabled={isSaving}
-                className="bg-[#8c5e47] text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-[#724a35] disabled:bg-stone-300 cursor-pointer"
-              >
-                {isSaving ? 'שומרת...' : 'שמירת שינויים'}
-              </button>
               <button
                 type="button"
-                onClick={() => handleCancelBooking(editForm)}
-                className="bg-white border border-red-200 text-red-700 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-red-50 cursor-pointer"
+                onClick={fetchBookings}
+                className="px-4 py-3 rounded-xl text-sm font-bold bg-[#8c5e47] text-white hover:bg-[#724a35] cursor-pointer"
               >
-                ביטול הזמנה
+                רענון
               </button>
             </div>
-          </form>
+
+            {editForm.id && (
+              <form
+                onSubmit={handleSaveEdit}
+                className="bg-[#faf6ef] border border-[#e8dfd3] rounded-2xl p-4 space-y-3 shadow-sm"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="font-bold text-[#5c4a45]">עריכת הזמנה</h2>
+                  <button type="button" onClick={closeEdit} className="text-xs text-[#8c746c] hover:underline cursor-pointer">
+                    סגירה
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <input
+                    required
+                    value={editForm.full_name}
+                    onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
+                    placeholder="שם מלא"
+                    className="p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white"
+                  />
+                  <input
+                    required
+                    value={editForm.phone}
+                    onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                    placeholder="טלפון"
+                    className="p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white"
+                  />
+                  <input
+                    value={editForm.profession}
+                    onChange={(e) => setEditForm({ ...editForm, profession: e.target.value })}
+                    placeholder="תחום טיפול"
+                    className="p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white"
+                  />
+                  <input
+                    value={editForm.plan_id}
+                    onChange={(e) => setEditForm({ ...editForm, plan_id: e.target.value })}
+                    placeholder="מסלול (plan_id)"
+                    className="p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white"
+                  />
+                  <input
+                    type="date"
+                    value={editForm.selected_date}
+                    onChange={(e) => setEditForm({ ...editForm, selected_date: e.target.value })}
+                    className="p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white"
+                  />
+                  <select
+                    value={editForm.selected_shift}
+                    onChange={(e) => setEditForm({ ...editForm, selected_shift: e.target.value })}
+                    className="p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white"
+                  >
+                    <option value="morning">בוקר</option>
+                    <option value="afternoon">אחה״צ</option>
+                    <option value="full-day">יום מלא</option>
+                  </select>
+                  <input
+                    type="number"
+                    value={editForm.total_price}
+                    onChange={(e) => setEditForm({ ...editForm, total_price: e.target.value })}
+                    placeholder="סכום"
+                    className="p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white"
+                  />
+                  <select
+                    value={editForm.status}
+                    onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                    className="p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white"
+                  >
+                    <option value="reserved">שריון זמני</option>
+                    <option value="paid">שולם</option>
+                    <option value="cancelled">בוטל</option>
+                  </select>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={isSaving}
+                    className="bg-[#8c5e47] text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-[#724a35] disabled:bg-stone-300 cursor-pointer"
+                  >
+                    {isSaving ? 'שומרת...' : 'שמירת שינויים'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleCancelBooking(editForm)}
+                    className="bg-white border border-red-200 text-red-700 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-red-50 cursor-pointer"
+                  >
+                    ביטול הזמנה
+                  </button>
+                </div>
+              </form>
+            )}
+
+            <div className="bg-[#faf6ef] border border-[#e8dfd3] rounded-2xl overflow-hidden">
+              {loading ? (
+                <p className="p-6 text-sm text-[#8c746c]">טוענת הזמנות...</p>
+              ) : filteredBookings.length === 0 ? (
+                <p className="p-6 text-sm text-[#8c746c]">אין הזמנות להצגה</p>
+              ) : (
+                <ul className="divide-y divide-[#e8dfd3]">
+                  {filteredBookings.map((booking) => (
+                    <li key={booking.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+                      <div className="space-y-1 text-right">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-bold text-[#3b2a26]">{booking.full_name || 'ללא שם'}</span>
+                          <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${
+                            booking.status === 'paid'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : booking.status === 'cancelled'
+                                ? 'bg-stone-200 text-stone-600'
+                                : 'bg-amber-100 text-amber-800'
+                          }`}>
+                            {STATUS_LABELS[booking.status] || booking.status}
+                          </span>
+                        </div>
+                        <p className="text-xs text-[#8c746c]">
+                          {booking.phone || 'ללא טלפון'}
+                          {booking.profession ? ` · ${booking.profession}` : ''}
+                        </p>
+                        <p className="text-xs text-[#5c4a45]">
+                          {booking.selected_date || 'ללא תאריך'}
+                          {' · '}
+                          {SHIFT_LABELS[booking.selected_shift] || booking.selected_shift || 'ללא משמרת'}
+                          {' · '}
+                          {booking.plan_id || 'ללא מסלול'}
+                          {' · '}
+                          {Number(booking.total_price || 0).toLocaleString()} ₪
+                        </p>
+                      </div>
+
+                      <div className="flex gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => openEdit(booking)}
+                          className="px-3 py-2 rounded-xl text-xs font-bold bg-white border border-[#e8dfd3] hover:bg-[#f5ebe0] cursor-pointer"
+                        >
+                          שינוי
+                        </button>
+                        {booking.status !== 'cancelled' && (
+                          <button
+                            type="button"
+                            onClick={() => handleCancelBooking(booking)}
+                            className="px-3 py-2 rounded-xl text-xs font-bold bg-white border border-red-200 text-red-700 hover:bg-red-50 cursor-pointer"
+                          >
+                            ביטול
+                          </button>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </>
         )}
-
-        <div className="bg-[#faf6ef] border border-[#e8dfd3] rounded-2xl overflow-hidden">
-          {loading ? (
-            <p className="p-6 text-sm text-[#8c746c]">טוענת הזמנות...</p>
-          ) : filteredBookings.length === 0 ? (
-            <p className="p-6 text-sm text-[#8c746c]">אין הזמנות להצגה</p>
-          ) : (
-            <ul className="divide-y divide-[#e8dfd3]">
-              {filteredBookings.map((booking) => (
-                <li key={booking.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
-                  <div className="space-y-1 text-right">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-bold text-[#3b2a26]">{booking.full_name || 'ללא שם'}</span>
-                      <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${
-                        booking.status === 'paid'
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : booking.status === 'cancelled'
-                            ? 'bg-stone-200 text-stone-600'
-                            : 'bg-amber-100 text-amber-800'
-                      }`}>
-                        {STATUS_LABELS[booking.status] || booking.status}
-                      </span>
-                    </div>
-                    <p className="text-xs text-[#8c746c]">
-                      {booking.phone || 'ללא טלפון'}
-                      {booking.profession ? ` · ${booking.profession}` : ''}
-                    </p>
-                    <p className="text-xs text-[#5c4a45]">
-                      {booking.selected_date || 'ללא תאריך'}
-                      {' · '}
-                      {SHIFT_LABELS[booking.selected_shift] || booking.selected_shift || 'ללא משמרת'}
-                      {' · '}
-                      {booking.plan_id || 'ללא מסלול'}
-                      {' · '}
-                      {Number(booking.total_price || 0).toLocaleString()} ₪
-                    </p>
-                  </div>
-
-                  <div className="flex gap-2 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => openEdit(booking)}
-                      className="px-3 py-2 rounded-xl text-xs font-bold bg-white border border-[#e8dfd3] hover:bg-[#f5ebe0] cursor-pointer"
-                    >
-                      שינוי
-                    </button>
-                    {booking.status !== 'cancelled' && (
-                      <button
-                        type="button"
-                        onClick={() => handleCancelBooking(booking)}
-                        className="px-3 py-2 rounded-xl text-xs font-bold bg-white border border-red-200 text-red-700 hover:bg-red-50 cursor-pointer"
-                      >
-                        ביטול
-                      </button>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
       </main>
     </div>
   );

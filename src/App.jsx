@@ -1,51 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from './supabaseClient';
-
-const CLINIC_INFO = {
-  name: "שורשים",
-  tagline: "מרחב טיפולי שקט במושב אביאל",
-  address: "מושב אביאל, אלונה",
-  hours: "א' - ה': 09:00 - 18:00",
-  imageUrl: "/clinic-space.jpg"
-};
-
-const PLANS = [
-  { 
-    id: 'session', 
-    title: 'ססיה שבועית (משמרת קבועה)', 
-    price: 800, // <--- עדכון המחיר ל-800
-    priceDisplay: '800 ₪ / חודש', // <--- עדכון תצוגת המחיר
-    badge: 'הכי מבוקש',
-    desc: 'משמרת קבועה אחת לשבוע בכל שבוע לאורך החודש (4 משמרות בחודש).' 
-  },
-  { 
-    id: 'hourly', 
-    title: 'השכרה שעתית גמישה', 
-    price: 60,
-    priceDisplay: '60 ₪ / שעה', 
-    desc: 'הזמנת משמרת בודדת (4 שעות) לפי דרישה למועד מסוים.' 
-  },
-  { 
-    id: 'daily', 
-    title: 'השכרה יומית חד-פעמית', 
-    price: 500,
-    priceDisplay: '500 ₪ / יום', 
-    desc: 'יום עבודה מלא ופרטי (08:00 - 20:00) בתאריך בודד.' 
-  },
-  { 
-    id: 'monthly', 
-    title: 'השכרה חודשית קבועה', 
-    price: 2200,
-    priceDisplay: 'החל מ-2,200 ₪ / חודש', 
-    desc: 'שריון 3-5 ימים קבועים בשבוע למשך חודש עד חצי שנה.' 
-  },
-];
-
-const DAY_NAMES = ['יום ראשון', 'יום שני', 'יום שלישי', 'יום רביעי', 'יום חמישי'];
-
-const OCCUPIED_SLOTS = [
-  { dayIndex: 2, shift: 'morning' }
-];
+import {
+  CLINIC_INFO,
+  DAY_NAMES,
+  DEFAULT_PRICING,
+  buildPlans,
+  calcPlanTotal,
+  isSlotBlocked,
+} from './clinicConfig';
 
 export default function ClinicBookingApp() {
   const [selectedPlan, setSelectedPlan] = useState(null);
@@ -61,11 +23,25 @@ export default function ClinicBookingApp() {
   
   const [formErrors, setFormErrors] = useState({});
   const [existingBookings, setExistingBookings] = useState([]);
+  const [pricingRows, setPricingRows] = useState(DEFAULT_PRICING);
+  const [blockedSlots, setBlockedSlots] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
+
+  const plans = useMemo(() => buildPlans(pricingRows), [pricingRows]);
 
   useEffect(() => {
     fetchBookings();
+    fetchPricing();
+    fetchBlockedSlots();
   }, []);
+
+  useEffect(() => {
+    if (!selectedPlan) return;
+    const updated = plans.find((p) => p.id === selectedPlan.id);
+    if (updated && updated.priceDisplay !== selectedPlan.priceDisplay) {
+      setSelectedPlan(updated);
+    }
+  }, [plans, selectedPlan]);
 
   const handleCancelCurrentBooking = async () => {
     if (!currentBookingId) return;
@@ -106,17 +82,38 @@ export default function ClinicBookingApp() {
     }
   };
 
+  const fetchPricing = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('pricing')
+        .select('*')
+        .order('sort_order', { ascending: true });
+      if (error) {
+        console.error('Error fetching pricing:', error);
+        return;
+      }
+      if (data?.length) setPricingRows(data);
+    } catch (err) {
+      console.error('Failed to load pricing:', err);
+    }
+  };
+
+  const fetchBlockedSlots = async () => {
+    try {
+      const { data, error } = await supabase.from('blocked_slots').select('*');
+      if (error) {
+        console.error('Error fetching blocked slots:', error);
+        return;
+      }
+      if (data) setBlockedSlots(data);
+    } catch (err) {
+      console.error('Failed to load blocked slots:', err);
+    }
+  };
+
   const calculateTotalPrice = () => {
     if (!selectedPlan) return 0;
-    if (selectedPlan.id === 'monthly') {
-      if (selectedSubPlanDays === 3) return 2200;
-      if (selectedSubPlanDays === 4) return 2800;
-      if (selectedSubPlanDays === 5) return 3500;
-    }
-    if (selectedPlan.id === 'hourly') {
-      return 260;
-    }
-    return selectedPlan.price;
+    return calcPlanTotal(selectedPlan.id, pricingRows, { subPlanDays: selectedSubPlanDays });
   };
   
   const validateForm = () => {
@@ -155,11 +152,13 @@ export default function ClinicBookingApp() {
 
     const dateObj = new Date(dateStr);
     const dayOfWeek = dateObj.getDay();
-    const isTakenInStatic = OCCUPIED_SLOTS.some(
-      slot => slot.dayIndex === dayOfWeek && (slot.shift === shiftStr || slot.shift === 'full-day' || shiftStr === 'full-day')
-    );
+    const isTakenInBlocks = isSlotBlocked(blockedSlots, {
+      dateStr,
+      dayIndex: dayOfWeek,
+      shift: shiftStr,
+    });
 
-    return isTakenInDb || isTakenInStatic;
+    return isTakenInDb || isTakenInBlocks;
   };
 
   const handleReserveBooking = async (e) => {
@@ -315,7 +314,7 @@ export default function ClinicBookingApp() {
               </div>
 
               <div className="space-y-3">
-                {PLANS.map((plan) => (
+                {plans.map((plan) => (
                   <div 
                     key={plan.id}
                     onClick={() => handlePlanSelect(plan)}
@@ -488,27 +487,26 @@ export default function ClinicBookingApp() {
                   <div className="space-y-2 bg-[#f5ebe0] p-3.5 rounded-2xl border border-[#ebdcc4]">
                     <label className="block text-xs font-bold text-[#5c4a45]">1. בחרי היקף ימים בשבוע:</label>
                     <div className="grid grid-cols-3 gap-2">
-                      {[
-                        { days: 3, label: '3 ימים (2,200 ₪)' },
-                        { days: 4, label: '4 ימים (2,800 ₪)' },
-                        { days: 5, label: '5 ימים (3,500 ₪)' }
-                      ].map((item) => (
-                        <button
-                          key={item.days}
-                          type="button"
-                          onClick={() => {
-                            setSelectedSubPlanDays(item.days);
-                            setSelectedDays([]);
-                          }}
-                          className={`p-2 rounded-xl border text-[11px] font-bold transition-all cursor-pointer ${
-                            selectedSubPlanDays === item.days 
-                              ? 'border-[#8c5e47] bg-[#8c5e47] text-white shadow-sm' 
-                              : 'border-[#ebd8c0] bg-white text-[#5c4a45] hover:bg-stone-50'
-                          }`}
-                        >
-                          {item.label}
-                        </button>
-                      ))}
+                      {[3, 4, 5].map((days) => {
+                        const amount = calcPlanTotal('monthly', pricingRows, { subPlanDays: days });
+                        return (
+                          <button
+                            key={days}
+                            type="button"
+                            onClick={() => {
+                              setSelectedSubPlanDays(days);
+                              setSelectedDays([]);
+                            }}
+                            className={`p-2 rounded-xl border text-[11px] font-bold transition-all cursor-pointer ${
+                              selectedSubPlanDays === days
+                                ? 'border-[#8c5e47] bg-[#8c5e47] text-white shadow-sm'
+                                : 'border-[#ebd8c0] bg-white text-[#5c4a45] hover:bg-stone-50'
+                            }`}
+                          >
+                            {days} ימים ({amount.toLocaleString()} ₪)
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -548,7 +546,10 @@ export default function ClinicBookingApp() {
 
                       <div className="space-y-2">
                         {DAY_NAMES.map((dayName, idx) => {
-                          const isOccupied = OCCUPIED_SLOTS.some(s => s.dayIndex === idx && s.shift === selectedShift);
+                          const isOccupied = isSlotBlocked(blockedSlots, {
+                            dayIndex: idx,
+                            shift: selectedShift,
+                          });
                           const isSelected = selectedDays.includes(idx);
 
                           return (
