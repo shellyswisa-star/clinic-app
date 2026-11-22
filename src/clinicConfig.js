@@ -1,8 +1,10 @@
+import { HOURS_PER_SHIFT } from './lib/schedule';
+
 export const CLINIC_INFO = {
   name: 'שורשים',
   tagline: 'מרחב טיפולי שקט במושב אביאל',
   address: 'מושב אביאל, אלונה',
-  hours: "א' - ה': 09:00 - 18:00",
+  hours: "א' - ה': 08:00 - 20:00",
   imageUrl: '/clinic-space.jpg',
 };
 
@@ -26,7 +28,7 @@ export const PLAN_META = [
   {
     id: 'hourly',
     title: 'השכרה שעתית גמישה',
-    desc: 'הזמנת משמרת בודדת (4 שעות) לפי דרישה למועד מסוים.',
+    desc: `משמרת בודדת של ${HOURS_PER_SHIFT} שעות (מ־08:00) למועד מסוים.`,
     unit: '/ שעה',
   },
   {
@@ -38,7 +40,7 @@ export const PLAN_META = [
   {
     id: 'monthly',
     title: 'השכרה חודשית קבועה',
-    desc: 'שריון 3-5 ימים קבועים בשבוע למשך חודש עד חצי שנה.',
+    desc: 'שריון 3–5 ימים קבועים בשבוע — עם תאריכים קונקרטיים מהיומן לחודש הקרוב.',
     unit: '/ חודש',
   },
 ];
@@ -46,8 +48,9 @@ export const PLAN_META = [
 /** ברירת מחדל אם הטבלה בסופבייס עדיין לא קיימת / ריקה */
 export const DEFAULT_PRICING = [
   { id: 'session', label: 'ססיה שבועית', amount: 800, sort_order: 1 },
-  { id: 'hourly', label: 'מחיר לשעה (תצוגה)', amount: 60, sort_order: 2 },
-  { id: 'hourly_shift', label: 'משמרת שעתית (4 שעות)', amount: 260, sort_order: 3 },
+  { id: 'hourly', label: 'מחיר לשעה', amount: 60, sort_order: 2 },
+  // נשמר לתאימות לאדמין ישן; החיוב בפועל = hourly × HOURS_PER_SHIFT
+  { id: 'hourly_shift', label: `משמרת שעתית (${HOURS_PER_SHIFT} שעות)`, amount: 60 * HOURS_PER_SHIFT, sort_order: 3 },
   { id: 'daily', label: 'יום מלא', amount: 500, sort_order: 4 },
   { id: 'monthly_3', label: 'חודשי — 3 ימים', amount: 2200, sort_order: 5 },
   { id: 'monthly_4', label: 'חודשי — 4 ימים', amount: 2800, sort_order: 6 },
@@ -60,6 +63,12 @@ export function pricingMap(rows) {
     map[row.id] = Number(row.amount) || 0;
   });
   return map;
+}
+
+export function hourlyShiftTotal(prices) {
+  const p = pricingMap(prices);
+  const rate = p.hourly ?? 60;
+  return rate * HOURS_PER_SHIFT;
 }
 
 export function buildPlans(prices) {
@@ -75,10 +84,12 @@ export function buildPlans(prices) {
     }
     if (meta.id === 'hourly') {
       const hourly = p.hourly ?? 60;
+      const shiftTotal = hourly * HOURS_PER_SHIFT;
       return {
         ...meta,
         price: hourly,
         priceDisplay: `${hourly.toLocaleString()} ₪ ${meta.unit}`,
+        priceHint: `משמרת ${HOURS_PER_SHIFT} ש׳ = ${shiftTotal.toLocaleString()} ₪`,
       };
     }
     const amount = p[meta.id] ?? 0;
@@ -93,7 +104,8 @@ export function buildPlans(prices) {
 export function calcPlanTotal(planId, prices, { subPlanDays = 3 } = {}) {
   const p = pricingMap(prices);
   if (planId === 'monthly') return p[`monthly_${subPlanDays}`] || 0;
-  if (planId === 'hourly') return p.hourly_shift || p.hourly || 0;
+  // שעתי: תמיד rate × שעות משמרת — לא ערך hourly_shift הישן (260)
+  if (planId === 'hourly') return hourlyShiftTotal(prices);
   return p[planId] || 0;
 }
 

@@ -14,7 +14,8 @@ test.describe('Public booking — functionality & correct info', () => {
   test('shows default prices consistently on plan cards', async ({ page }) => {
     await page.goto('/');
     // תצוגת כרטיס: שעתי מציג מחיר לשעה; ססיה מציגה 800
-    await expect(page.getByText(/60\s*₪/)).toBeVisible();
+    await expect(page.getByText('60 ₪ / שעה')).toBeVisible();
+    await expect(page.getByText(/משמרת 6 ש׳ = 360/)).toBeVisible();
     await expect(page.getByText(/800\s*₪/)).toBeVisible();
     await expect(page.getByText(/500\s*₪/)).toBeVisible();
     await expect(page.getByText(/2,200|2200/)).toBeVisible();

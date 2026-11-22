@@ -42,6 +42,8 @@ export default function AdminDashboard({ session, onLogout }) {
   const [error, setError] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [search, setSearch] = useState('');
+  const [dateFilterMode, setDateFilterMode] = useState('none'); // none | created | selected
+  const [dateFilterValue, setDateFilterValue] = useState('');
   const [viewMode, setViewMode] = useState('calendar');
   const [editForm, setEditForm] = useState(emptyEdit);
   const [isSaving, setIsSaving] = useState(false);
@@ -79,11 +81,23 @@ export default function AdminDashboard({ session, onLogout }) {
     if (tab === 'bookings') fetchBookings();
   }, [tab]);
 
+  const latestCreated = useMemo(() => bookings[0] || null, [bookings]);
+
   const filteredBookings = useMemo(() => {
     const q = search.trim().toLowerCase();
     return bookings.filter((b) => {
       const statusOk = statusFilter === 'all' || b.status === statusFilter;
       if (!statusOk) return false;
+
+      if (dateFilterMode !== 'none' && dateFilterValue) {
+        if (dateFilterMode === 'selected') {
+          if (b.selected_date !== dateFilterValue) return false;
+        } else if (dateFilterMode === 'created') {
+          const createdDay = b.created_at ? String(b.created_at).slice(0, 10) : '';
+          if (createdDay !== dateFilterValue) return false;
+        }
+      }
+
       if (!q) return true;
       return (
         (b.full_name || '').toLowerCase().includes(q) ||
@@ -91,7 +105,14 @@ export default function AdminDashboard({ session, onLogout }) {
         (b.plan_id || '').toLowerCase().includes(q)
       );
     });
-  }, [bookings, statusFilter, search]);
+  }, [bookings, statusFilter, search, dateFilterMode, dateFilterValue]);
+
+  const switchViewMode = (mode) => {
+    setViewMode(mode);
+    setEditForm(emptyEdit);
+    setError('');
+    setNotice('');
+  };
 
   const openEdit = (booking) => {
     setNotice('');
@@ -230,6 +251,7 @@ export default function AdminDashboard({ session, onLogout }) {
               type="button"
               onClick={() => {
                 setTab(item.id);
+                setEditForm(emptyEdit);
                 setNotice('');
                 setError('');
               }}
@@ -260,50 +282,104 @@ export default function AdminDashboard({ session, onLogout }) {
 
         {tab === 'bookings' && (
           <>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="flex gap-1 bg-white border border-[#e8dfd3] rounded-xl p-1">
-                {[
-                  { id: 'calendar', label: 'יומן' },
-                  { id: 'list', label: 'רשימה' },
-                ].map((mode) => (
-                  <button
-                    key={mode.id}
-                    type="button"
-                    onClick={() => setViewMode(mode.id)}
-                    className={`px-3 py-2 rounded-lg text-xs font-bold cursor-pointer ${
-                      viewMode === mode.id
-                        ? 'bg-[#8c5e47] text-white'
-                        : 'text-[#5c4a45] hover:bg-[#f5ebe0]'
-                    }`}
-                  >
-                    {mode.label}
-                  </button>
-                ))}
+            {latestCreated && (
+              <div
+                data-testid="admin-latest-booking"
+                className="bg-white border border-[#e8dfd3] rounded-2xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+              >
+                <div className="text-right space-y-0.5">
+                  <p className="text-[11px] font-bold text-[#8c5e47]">הזמנה אחרונה שנכנסה</p>
+                  <p className="text-sm font-bold text-[#3b2a26]">
+                    {latestCreated.full_name || 'ללא שם'}
+                    <span className="text-xs font-semibold text-[#8c746c] mr-2">
+                      · {STATUS_LABELS[latestCreated.status] || latestCreated.status}
+                    </span>
+                  </p>
+                  <p className="text-[11px] text-[#8c746c]">
+                    מועד: {latestCreated.selected_date || '—'}
+                    {latestCreated.created_at
+                      ? ` · נקלטה: ${new Date(latestCreated.created_at).toLocaleString('he-IL')}`
+                      : ''}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => openEdit(latestCreated)}
+                  className="px-3 py-2 rounded-xl text-xs font-bold bg-[#8c5e47] text-white hover:bg-[#724a35] cursor-pointer shrink-0"
+                >
+                  פתיחה לעריכה
+                </button>
               </div>
-              <input
-                type="search"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="חיפוש לפי שם, טלפון או מסלול..."
-                className="flex-1 p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#8c5e47]"
-              />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#8c5e47]"
-              >
-                <option value="all">כל הסטטוסים</option>
-                <option value="reserved">שריון זמני</option>
-                <option value="paid">שולם</option>
-                <option value="cancelled">בוטל</option>
-              </select>
-              <button
-                type="button"
-                onClick={fetchBookings}
-                className="px-4 py-3 rounded-xl text-sm font-bold bg-[#8c5e47] text-white hover:bg-[#724a35] cursor-pointer"
-              >
-                רענון
-              </button>
+            )}
+
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex gap-1 bg-white border border-[#e8dfd3] rounded-xl p-1">
+                  {[
+                    { id: 'calendar', label: 'יומן' },
+                    { id: 'list', label: 'רשימה' },
+                  ].map((mode) => (
+                    <button
+                      key={mode.id}
+                      type="button"
+                      onClick={() => switchViewMode(mode.id)}
+                      className={`px-3 py-2 rounded-lg text-xs font-bold cursor-pointer ${
+                        viewMode === mode.id
+                          ? 'bg-[#8c5e47] text-white'
+                          : 'text-[#5c4a45] hover:bg-[#f5ebe0]'
+                      }`}
+                    >
+                      {mode.label}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="חיפוש לפי שם, טלפון או מסלול..."
+                  className="flex-1 p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#8c5e47]"
+                />
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#8c5e47]"
+                >
+                  <option value="all">כל הסטטוסים</option>
+                  <option value="reserved">שריון זמני</option>
+                  <option value="paid">שולם</option>
+                  <option value="cancelled">בוטל</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={fetchBookings}
+                  className="px-4 py-3 rounded-xl text-sm font-bold bg-[#8c5e47] text-white hover:bg-[#724a35] cursor-pointer"
+                >
+                  רענון
+                </button>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+                <label className="text-xs font-bold text-[#5c4a45] shrink-0">סינון לפי תאריך:</label>
+                <select
+                  value={dateFilterMode}
+                  onChange={(e) => setDateFilterMode(e.target.value)}
+                  className="p-2.5 border border-[#cbd5e1] rounded-xl text-sm bg-white"
+                  data-testid="admin-date-filter-mode"
+                >
+                  <option value="none">ללא</option>
+                  <option value="created">תאריך קליטת הזמנה</option>
+                  <option value="selected">תאריך המועד ביומן</option>
+                </select>
+                <input
+                  type="date"
+                  value={dateFilterValue}
+                  disabled={dateFilterMode === 'none'}
+                  onChange={(e) => setDateFilterValue(e.target.value)}
+                  className="p-2.5 border border-[#cbd5e1] rounded-xl text-sm bg-white disabled:opacity-50"
+                  data-testid="admin-date-filter-value"
+                />
+              </div>
             </div>
 
             {editForm.id && (

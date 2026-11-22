@@ -3,9 +3,11 @@ import {
   DEFAULT_PRICING,
   buildPlans,
   calcPlanTotal,
+  hourlyShiftTotal,
   isSlotBlocked,
   pricingMap,
 } from './clinicConfig';
+import { HOURS_PER_SHIFT } from './lib/schedule';
 
 describe('pricing correctness', () => {
   it('maps default pricing without duplicates', () => {
@@ -13,13 +15,22 @@ describe('pricing correctness', () => {
     const ids = DEFAULT_PRICING.map((r) => r.id);
     expect(new Set(ids).size).toBe(ids.length);
     expect(map.session).toBe(800);
-    expect(map.hourly_shift).toBe(260);
+    expect(map.hourly).toBe(60);
+    expect(map.hourly_shift).toBe(60 * HOURS_PER_SHIFT);
   });
 
-  it('charges hourly shift total, not hourly display rate', () => {
-    expect(calcPlanTotal('hourly', DEFAULT_PRICING)).toBe(260);
+  it('charges hourly as rate × shift hours (not stale hourly_shift)', () => {
+    expect(HOURS_PER_SHIFT).toBe(6);
+    expect(hourlyShiftTotal(DEFAULT_PRICING)).toBe(360);
+    expect(calcPlanTotal('hourly', DEFAULT_PRICING)).toBe(360);
     expect(calcPlanTotal('session', DEFAULT_PRICING)).toBe(800);
     expect(calcPlanTotal('monthly', DEFAULT_PRICING, { subPlanDays: 4 })).toBe(2800);
+
+    // גם אם hourly_shift ישן נשאר ב־DB — החיוב נגזר מהשעה
+    const stale = DEFAULT_PRICING.map((row) =>
+      row.id === 'hourly_shift' ? { ...row, amount: 260 } : row,
+    );
+    expect(calcPlanTotal('hourly', stale)).toBe(360);
   });
 
   it('builds plan cards with matching display amounts', () => {
@@ -27,6 +38,7 @@ describe('pricing correctness', () => {
     const hourly = plans.find((p) => p.id === 'hourly');
     const session = plans.find((p) => p.id === 'session');
     expect(hourly.priceDisplay).toContain('60');
+    expect(hourly.priceHint).toMatch(/360/);
     expect(session.priceDisplay).toContain('800');
     expect(plans).toHaveLength(4);
   });

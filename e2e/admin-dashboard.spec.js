@@ -31,6 +31,33 @@ describeAdmin('Admin dashboard (authenticated)', () => {
     await expect(page.locator('span.bg-amber-100', { hasText: 'שריון' })).toBeVisible();
   });
 
+  test('closes edit form when switching calendar/list', async ({ page }) => {
+    await loginAsAdmin(page);
+    await page.getByRole('button', { name: 'רשימה' }).click();
+
+    const editBtn = page.getByRole('button', { name: 'שינוי' }).first();
+    if ((await editBtn.count()) === 0) {
+      test.skip(true, 'No bookings to edit');
+      return;
+    }
+    await editBtn.click();
+    await expect(page.getByRole('heading', { name: 'עריכת הזמנה' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'יומן' }).click();
+    await expect(page.getByRole('heading', { name: 'עריכת הזמנה' })).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'רשימה' }).click();
+    await expect(page.getByRole('heading', { name: 'עריכת הזמנה' })).toHaveCount(0);
+  });
+
+  test('shows latest booking strip and date filters', async ({ page }) => {
+    await loginAsAdmin(page);
+    await expect(page.getByTestId('admin-latest-booking')).toBeVisible();
+    await expect(page.getByTestId('admin-date-filter-mode')).toBeVisible();
+    await page.getByTestId('admin-date-filter-mode').selectOption('created');
+    await expect(page.getByTestId('admin-date-filter-value')).toBeEnabled();
+  });
+
   test('opens pricing and blocked-slots tabs', async ({ page }) => {
     await loginAsAdmin(page);
 

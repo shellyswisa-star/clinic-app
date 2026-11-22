@@ -28,8 +28,8 @@ create index if not exists blocked_slots_day_idx on public.blocked_slots (day_in
 -- ערכי התחלה (לא דורסים אם כבר קיימים)
 insert into public.pricing (id, label, amount, sort_order) values
   ('session', 'ססיה שבועית', 800, 1),
-  ('hourly', 'מחיר לשעה (תצוגה)', 60, 2),
-  ('hourly_shift', 'משמרת שעתית (4 שעות)', 260, 3),
+  ('hourly', 'מחיר לשעה', 60, 2),
+  ('hourly_shift', 'משמרת שעתית (6 שעות)', 360, 3),
   ('daily', 'יום מלא', 500, 4),
   ('monthly_3', 'חודשי — 3 ימים', 2200, 5),
   ('monthly_4', 'חודשי — 4 ימים', 2800, 6),

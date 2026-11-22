@@ -14,6 +14,13 @@ import {
   validateBookingForm,
 } from './lib/bookingRules';
 import { createBookingSafe, mapBookingError } from './lib/bookingApi';
+import {
+  PARTIAL_SHIFTS,
+  SHIFT_WINDOWS,
+  formatDateHe,
+  getMonthlyConcreteDates,
+  getSessionDates as buildSessionDates,
+} from './lib/schedule';
 import AlertBanner from './components/AlertBanner.jsx';
 
 export default function ClinicBookingApp() {
@@ -25,6 +32,7 @@ export default function ClinicBookingApp() {
   const [dateErrorMsg, setDateErrorMsg] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('credit');
   const [currentBookingId, setCurrentBookingId] = useState(null);
+  const [currentBookingIds, setCurrentBookingIds] = useState([]);
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({ name: '', phone: '', profession: '', cardNumber: '', expiry: '', cvv: '' });
   
@@ -138,14 +146,49 @@ export default function ClinicBookingApp() {
       blockedSlots,
     });
 
+  const monthlyConcreteDates = useMemo(() => {
+    if (selectedPlan?.id !== 'monthly') return [];
+    if (selectedDays.length !== selectedSubPlanDays) return [];
+    return getMonthlyConcreteDates(selectedDays, { weeks: 4 });
+  }, [selectedPlan?.id, selectedDays, selectedSubPlanDays]);
+
+  const monthlyDatesAvailability = useMemo(
+    () =>
+      monthlyConcreteDates.map((dateStr) => ({
+        dateStr,
+        taken: isShiftTaken(dateStr, selectedShift || 'morning'),
+      })),
+    // isShiftTaken closes over bookings/blocks — refresh when those change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [monthlyConcreteDates, selectedShift, existingBookings, blockedSlots],
+  );
+
+  const monthlyAllFree =
+    monthlyDatesAvailability.length > 0 &&
+    monthlyDatesAvailability.every((d) => !d.taken);
+
   const handleReserveBooking = async (e) => {
     e.preventDefault();
     setActionError('');
     if (!validateForm()) return;
     if (!canStartSave({ isSaving })) return;
 
-    if (isShiftTaken(selectedDate, selectedShift)) {
-      setActionError('יש כבר הזמנה במועד שבחרת. בחרי תאריך או משמרת אחרת.');
+    const shift = selectedShift || 'full-day';
+    const datesToBook =
+      selectedPlan.id === 'monthly'
+        ? monthlyConcreteDates
+        : selectedPlan.id === 'session'
+          ? buildSessionDates(selectedDate)
+          : [selectedDate || new Date().toISOString().split('T')[0]];
+
+    if (!datesToBook.length) {
+      setActionError('חסרים תאריכים לשריון. חזרי לבחירת מועדים.');
+      return;
+    }
+
+    const blocked = datesToBook.find((d) => isShiftTaken(d, shift));
+    if (blocked) {
+      setActionError(`המועד ${formatDateHe(blocked)} כבר תפוס. שני בחירה ביומן.`);
       return;
     }
 
@@ -153,32 +196,36 @@ export default function ClinicBookingApp() {
 
     try {
       const totalPrice = calculateTotalPrice();
+      const createdIds = [];
 
-      const { data: bookingData, error: bookingError } = await createBookingSafe({
-        plan_id: selectedPlan.id,
-        full_name: formData.name,
-        phone: formData.phone,
-        profession: formData.profession,
-        selected_date: selectedDate || new Date().toISOString().split('T')[0],
-        selected_shift: selectedShift || 'full-day',
-        total_price: totalPrice,
-        status: 'reserved',
-      });
+      for (let i = 0; i < datesToBook.length; i += 1) {
+        const { data: bookingData, error: bookingError } = await createBookingSafe({
+          plan_id: selectedPlan.id,
+          full_name: formData.name,
+          phone: formData.phone,
+          profession: formData.profession,
+          selected_date: datesToBook[i],
+          selected_shift: shift,
+          // מחיר מלא רק בהזמנה הראשונה — השאר מחזיקות משבצת
+          total_price: i === 0 ? totalPrice : 0,
+          status: 'reserved',
+        });
 
-      if (bookingError) {
-        throw new Error(mapBookingError(bookingError));
+        if (bookingError) {
+          throw new Error(mapBookingError(bookingError));
+        }
+        if (bookingData?.id) createdIds.push(bookingData.id);
       }
 
-      if (bookingData?.id) {
-        setCurrentBookingId(bookingData.id);
-      }
+      setCurrentBookingIds(createdIds);
+      setCurrentBookingId(createdIds[0] || null);
 
       const { error: orderError } = await supabase.from('orders').insert([
         {
           customer_name: formData.name,
           total_amount: totalPrice,
-          status: 'pending'
-        }
+          status: 'pending',
+        },
       ]);
       if (orderError) {
         throw new Error(mapBookingError(orderError));
@@ -202,11 +249,12 @@ export default function ClinicBookingApp() {
     setIsSaving(true);
 
     try {
-      if (currentBookingId) {
+      const ids = currentBookingIds.length ? currentBookingIds : currentBookingId ? [currentBookingId] : [];
+      if (ids.length) {
         const { error: bookingError } = await supabase
           .from('bookings')
           .update({ status: 'paid' })
-          .eq('id', currentBookingId);
+          .in('id', ids);
         if (bookingError) throw bookingError;
 
         const { error: orderError } = await supabase
@@ -232,19 +280,6 @@ export default function ClinicBookingApp() {
     setSelectedDays([]);
     setDateErrorMsg('');
     setStep(2);
-  };
-
-  const getSessionDates = (startDateStr) => {
-    if (!startDateStr) return [];
-    const dates = [];
-    let curr = new Date(startDateStr);
-    for (let i = 0; i < 4; i++) {
-      const d = curr.getDate().toString().padStart(2, '0');
-      const m = (curr.getMonth() + 1).toString().padStart(2, '0');
-      dates.push(`${d}/${m}`);
-      curr.setDate(curr.getDate() + 7);
-    }
-    return dates;
   };
 
   const handleDateSelection = (dateStr) => {
@@ -318,11 +353,16 @@ export default function ClinicBookingApp() {
                         {plan.badge}
                       </span>
                     )}
-                    <div className="flex justify-between items-start mb-1">
+                    <div className="flex justify-between items-start mb-1 gap-2">
                       <h3 className="font-bold text-[#4a3a35] text-sm">{plan.title}</h3>
-                      <span className="text-[#8c5e47] font-extrabold text-xs bg-[#f4ebd9]/80 px-2.5 py-1 rounded-lg">
-                        {plan.priceDisplay}
-                      </span>
+                      <div className="text-left shrink-0">
+                        <span className="text-[#8c5e47] font-extrabold text-xs bg-[#f4ebd9]/80 px-2.5 py-1 rounded-lg inline-block">
+                          {plan.priceDisplay}
+                        </span>
+                        {plan.priceHint && (
+                          <p className="text-[10px] text-[#8c746c] mt-1">{plan.priceHint}</p>
+                        )}
+                      </div>
                     </div>
                     <p className="text-xs text-[#735e58] leading-relaxed">{plan.desc}</p>
                   </div>
@@ -373,10 +413,7 @@ export default function ClinicBookingApp() {
                     <div className="space-y-2 pt-1">
                       <label className="block text-xs font-bold text-[#5c4a45]">2. בחרי משמרת פנויה בתאריך זה:</label>
                       <div className="grid grid-cols-2 gap-2">
-                        {[
-                          { id: 'morning', label: '09:00 - 13:00 (בוקר)' },
-                          { id: 'afternoon', label: '13:30 - 17:30 (אחה"צ)' }
-                        ].map((shift) => {
+                        {PARTIAL_SHIFTS.map((shift) => {
                           const taken = isShiftTaken(selectedDate, shift.id);
                           const isSelected = selectedShift === shift.id;
 
@@ -398,7 +435,7 @@ export default function ClinicBookingApp() {
                               <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${
                                 taken ? 'bg-stone-300 text-stone-600' : isSelected ? 'bg-white/20 text-white' : 'bg-[#f4ebd9] text-[#8c5e47]'
                               }`}>
-                                {taken ? 'תפוס במערכת 🔒' : 'פנוי להרשמה ✓'}
+                                {taken ? 'תפוס במערכת' : 'פנוי להרשמה'}
                               </span>
                             </button>
                           );
@@ -456,7 +493,7 @@ export default function ClinicBookingApp() {
                   )}
 
                   <div className="bg-[#f5ebe0] border border-[#ebdcc4] p-3.5 rounded-xl text-xs text-[#5c4a45] space-y-1">
-                    <p>🕒 <strong>שעות הפעילות ליום מלא:</strong> 09:00 - 18:00</p>
+                    <p>🕒 <strong>שעות הפעילות ליום מלא:</strong> {SHIFT_WINDOWS['full-day'].short}</p>
                     <p className="text-[11px] text-[#8c746c]">הקליניקה תעמוד לרשותך באופן בלעדי לאורך כל היום.</p>
                   </div>
 
@@ -502,10 +539,7 @@ export default function ClinicBookingApp() {
                   <div className="space-y-2">
                     <label className="block text-xs font-bold text-[#5c4a45]">2. בחרי משמרת קבועה:</label>
                     <div className="grid grid-cols-2 gap-2">
-                      {[
-                        { id: 'morning', label: '09:00 - 13:00 (בוקר)' },
-                        { id: 'afternoon', label: '13:30 - 17:30 (אחה"צ)' }
-                      ].map((shift) => (
+                      {PARTIAL_SHIFTS.map((shift) => (
                         <button
                           key={shift.id}
                           type="button"
@@ -548,7 +582,7 @@ export default function ClinicBookingApp() {
                               disabled={isOccupied}
                               onClick={() => {
                                 if (selectedDays.includes(idx)) {
-                                  setSelectedDays(selectedDays.filter(d => d !== idx));
+                                  setSelectedDays(selectedDays.filter((d) => d !== idx));
                                 } else if (selectedDays.length < selectedSubPlanDays) {
                                   setSelectedDays([...selectedDays, idx]);
                                 }
@@ -563,11 +597,11 @@ export default function ClinicBookingApp() {
                             >
                               <span>{dayName}</span>
                               {isOccupied ? (
-                                <span className="text-[10px] bg-stone-300 text-stone-600 px-2 py-0.5 rounded">תפוס במערכת 🔒</span>
+                                <span className="text-[10px] bg-stone-300 text-stone-600 px-2 py-0.5 rounded">חסום קבוע</span>
                               ) : isSelected ? (
-                                <span className="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded">נבחר ✓</span>
+                                <span className="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded">נבחר</span>
                               ) : (
-                                <span className="text-[10px] text-[#8c5e47]">פנוי להרשמה</span>
+                                <span className="text-[10px] text-[#8c5e47]">לבחירה</span>
                               )}
                             </button>
                           );
@@ -576,9 +610,45 @@ export default function ClinicBookingApp() {
                     </div>
                   )}
 
+                  {selectedShift && selectedDays.length === selectedSubPlanDays && (
+                    <div className="space-y-2" data-testid="monthly-calendar-sync">
+                      <label className="block text-xs font-bold text-[#5c4a45]">
+                        4. תאריכים מהיומן (4 שבועות קדימה):
+                      </label>
+                      <p className="text-[11px] text-[#8c746c]">
+                        אלה המועדים שישורינו בפועל. אפשר להמשיך רק אם כולם פנויים.
+                      </p>
+                      <ul className="bg-white border border-[#e8dfd3] rounded-xl divide-y divide-[#eee4d8] max-h-48 overflow-y-auto">
+                        {monthlyDatesAvailability.map(({ dateStr, taken }) => (
+                          <li
+                            key={dateStr}
+                            className={`px-3 py-2 text-xs flex justify-between gap-2 ${
+                              taken ? 'text-red-700 bg-red-50/50' : 'text-[#5c4a45]'
+                            }`}
+                          >
+                            <span>{formatDateHe(dateStr)}</span>
+                            <span className="font-semibold">{taken ? 'תפוס' : 'פנוי'}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      {!monthlyAllFree && (
+                        <AlertBanner tone="error">
+                          חלק מהתאריכים תפוסים. שני ימים בשבוע או משמרת, או בחרי היקף אחר.
+                        </AlertBanner>
+                      )}
+                    </div>
+                  )}
+
                   <button 
-                    disabled={selectedDays.length !== selectedSubPlanDays || !selectedShift}
-                    onClick={() => setStep(3)}
+                    disabled={
+                      selectedDays.length !== selectedSubPlanDays ||
+                      !selectedShift ||
+                      !monthlyAllFree
+                    }
+                    onClick={() => {
+                      setSelectedDate(monthlyConcreteDates[0] || '');
+                      setStep(3);
+                    }}
                     className="w-full bg-[#8c5e47] text-[#faf4eb] py-3.5 rounded-xl font-bold text-sm disabled:bg-[#ebdcc8] disabled:text-[#b8a096] hover:bg-[#724a35] transition-colors shadow-md mt-4 cursor-pointer"
                   >
                     המשך לפרטים ושריון מקום
@@ -665,27 +735,39 @@ export default function ClinicBookingApp() {
                 <p>📍 <strong>מיקום:</strong> הקליניקה באביאל</p>
                 <p>💳 <strong>מסלול:</strong> {selectedPlan.title}</p>
                 
+                {selectedPlan.id === 'hourly' && (
+                  <>
+                    <p>🗓️ <strong>תאריך:</strong> {formatDateHe(selectedDate)}</p>
+                    <p>⏰ <strong>משמרת:</strong> {SHIFT_WINDOWS[selectedShift]?.label || selectedShift}</p>
+                  </>
+                )}
+
                 {selectedPlan.id === 'session' && (
                   <>
-                    <p>🗓️ <strong>יום בשבוע:</strong> {selectedDate ? DAY_NAMES[new Date(selectedDate).getDay()] : ''}</p>
+                    <p>🗓️ <strong>יום בשבוע:</strong> {selectedDate ? DAY_NAMES[new Date(`${selectedDate}T12:00:00`).getDay()] : ''}</p>
                     <p className="bg-white/70 p-2 rounded-lg border border-[#ebdcc4] text-[#8c5e47] font-semibold">
-                      📅 <strong>4 תאריכי הפעילות:</strong> {getSessionDates(selectedDate).join(', ')}
+                      📅 <strong>4 תאריכי הפעילות:</strong>{' '}
+                      {buildSessionDates(selectedDate).map(formatDateHe).join(', ')}
                     </p>
-                    <p>⏰ <strong>משמרת:</strong> {selectedShift === 'morning' ? '09:00 - 13:00 (בוקר)' : '13:30 - 17:30 (אחה"צ)'}</p>
+                    <p>⏰ <strong>משמרת:</strong> {SHIFT_WINDOWS[selectedShift]?.label || selectedShift}</p>
                   </>
                 )}
 
                 {selectedPlan.id === 'daily' && (
                   <>
-                    <p>🗓️ <strong>תאריך:</strong> {selectedDate}</p>
-                    <p>⏰ <strong>שעות:</strong> 09:00 - 18:00 (יום מלא)</p>
+                    <p>🗓️ <strong>תאריך:</strong> {formatDateHe(selectedDate)}</p>
+                    <p>⏰ <strong>שעות:</strong> {SHIFT_WINDOWS['full-day'].label}</p>
                   </>
                 )}
 
                 {selectedPlan.id === 'monthly' && (
                   <>
-                    <p>📅 <strong>ימים קבועים ({selectedSubPlanDays} בשבוע):</strong> {selectedDays.map(d => DAY_NAMES[d]).join(', ')}</p>
-                    <p>⏰ <strong>משמרת:</strong> {selectedShift === 'morning' ? '09:00 - 13:00 (בוקר)' : '13:30 - 17:30 (אחה"צ)'}</p>
+                    <p>📅 <strong>ימים קבועים ({selectedSubPlanDays} בשבוע):</strong> {selectedDays.map((d) => DAY_NAMES[d]).join(', ')}</p>
+                    <p>⏰ <strong>משמרת:</strong> {SHIFT_WINDOWS[selectedShift]?.label || selectedShift}</p>
+                    <p className="bg-white/70 p-2 rounded-lg border border-[#ebdcc4] text-[#8c5e47] font-semibold leading-relaxed">
+                      תאריכים שישורינו:{' '}
+                      {monthlyConcreteDates.map(formatDateHe).join(' · ')}
+                    </p>
                   </>
                 )}
 
