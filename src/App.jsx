@@ -15,9 +15,11 @@ import {
 } from './lib/bookingRules';
 import { createBookingSafe, mapBookingError } from './lib/bookingApi';
 import {
+  MONTHLY_DURATION_OPTIONS,
   PARTIAL_SHIFTS,
   SHIFT_WINDOWS,
   formatDateHe,
+  formatMonthRangeHe,
   getMonthlyConcreteDates,
   getSessionDates as buildSessionDates,
 } from './lib/schedule';
@@ -29,6 +31,8 @@ export default function ClinicBookingApp() {
   const [selectedShift, setSelectedShift] = useState('');
   const [selectedSubPlanDays, setSelectedSubPlanDays] = useState(3);
   const [selectedDays, setSelectedDays] = useState([]);
+  const [monthlyStartDate, setMonthlyStartDate] = useState('');
+  const [monthlyMonths, setMonthlyMonths] = useState(1);
   const [dateErrorMsg, setDateErrorMsg] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('credit');
   const [currentBookingId, setCurrentBookingId] = useState(null);
@@ -129,7 +133,10 @@ export default function ClinicBookingApp() {
 
   const calculateTotalPrice = () => {
     if (!selectedPlan) return 0;
-    return calcPlanTotal(selectedPlan.id, pricingRows, { subPlanDays: selectedSubPlanDays });
+    return calcPlanTotal(selectedPlan.id, pricingRows, {
+      subPlanDays: selectedSubPlanDays,
+      months: selectedPlan.id === 'monthly' ? monthlyMonths : 1,
+    });
   };
   
   const validateForm = () => {
@@ -149,8 +156,12 @@ export default function ClinicBookingApp() {
   const monthlyConcreteDates = useMemo(() => {
     if (selectedPlan?.id !== 'monthly') return [];
     if (selectedDays.length !== selectedSubPlanDays) return [];
-    return getMonthlyConcreteDates(selectedDays, { weeks: 4 });
-  }, [selectedPlan?.id, selectedDays, selectedSubPlanDays]);
+    if (!monthlyStartDate) return [];
+    return getMonthlyConcreteDates(selectedDays, {
+      startDateStr: monthlyStartDate,
+      months: monthlyMonths,
+    });
+  }, [selectedPlan?.id, selectedDays, selectedSubPlanDays, monthlyStartDate, monthlyMonths]);
 
   const monthlyDatesAvailability = useMemo(
     () =>
@@ -278,8 +289,25 @@ export default function ClinicBookingApp() {
     setSelectedDate('');
     setSelectedShift(plan.id === 'daily' ? 'full-day' : '');
     setSelectedDays([]);
+    setMonthlyStartDate('');
+    setMonthlyMonths(1);
     setDateErrorMsg('');
     setStep(2);
+  };
+
+  const handleMonthlyStartDate = (dateStr) => {
+    setDateErrorMsg('');
+    if (!dateStr) {
+      setMonthlyStartDate('');
+      return;
+    }
+    const dayOfWeek = new Date(`${dateStr}T12:00:00`).getDay();
+    if (dayOfWeek === 5 || dayOfWeek === 6) {
+      setDateErrorMsg('הקליניקה פתוחה בימים א\' עד ה\' בלבד. נא לבחור יום חול להתחלה.');
+      setMonthlyStartDate('');
+      return;
+    }
+    setMonthlyStartDate(dateStr);
   };
 
   const handleDateSelection = (dateStr) => {
@@ -611,30 +639,89 @@ export default function ClinicBookingApp() {
                   )}
 
                   {selectedShift && selectedDays.length === selectedSubPlanDays && (
-                    <div className="space-y-2" data-testid="monthly-calendar-sync">
-                      <label className="block text-xs font-bold text-[#5c4a45]">
-                        4. תאריכים מהיומן (4 שבועות קדימה):
-                      </label>
-                      <p className="text-[11px] text-[#8c746c]">
-                        אלה המועדים שישורינו בפועל. אפשר להמשיך רק אם כולם פנויים.
-                      </p>
-                      <ul className="bg-white border border-[#e8dfd3] rounded-xl divide-y divide-[#eee4d8] max-h-48 overflow-y-auto">
-                        {monthlyDatesAvailability.map(({ dateStr, taken }) => (
-                          <li
-                            key={dateStr}
-                            className={`px-3 py-2 text-xs flex justify-between gap-2 ${
-                              taken ? 'text-red-700 bg-red-50/50' : 'text-[#5c4a45]'
-                            }`}
-                          >
-                            <span>{formatDateHe(dateStr)}</span>
-                            <span className="font-semibold">{taken ? 'תפוס' : 'פנוי'}</span>
-                          </li>
-                        ))}
-                      </ul>
-                      {!monthlyAllFree && (
-                        <AlertBanner tone="error">
-                          חלק מהתאריכים תפוסים. שני ימים בשבוע או משמרת, או בחרי היקף אחר.
-                        </AlertBanner>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-bold text-[#5c4a45] mb-1.5">
+                          4. החל מאיזה תאריך מתחילים?
+                        </label>
+                        <input
+                          type="date"
+                          min={todayStr}
+                          value={monthlyStartDate}
+                          data-testid="monthly-start-date"
+                          onClick={(e) => e.target.showPicker && e.target.showPicker()}
+                          onChange={(e) => handleMonthlyStartDate(e.target.value)}
+                          className="w-full p-3 border border-[#cbd5e1] rounded-xl text-sm bg-[#faf8f5] text-[#4a3e3d] focus:outline-none focus:ring-2 focus:ring-[#8c5e47] cursor-pointer"
+                        />
+                      </div>
+
+                      {dateErrorMsg && (
+                        <AlertBanner tone="error">{dateErrorMsg}</AlertBanner>
+                      )}
+
+                      {monthlyStartDate && !dateErrorMsg && (
+                        <div className="space-y-2">
+                          <label className="block text-xs font-bold text-[#5c4a45]">
+                            5. לכמה חודשים?
+                          </label>
+                          <div className="grid grid-cols-3 gap-2">
+                            {MONTHLY_DURATION_OPTIONS.map((opt) => (
+                              <button
+                                key={opt.months}
+                                type="button"
+                                onClick={() => setMonthlyMonths(opt.months)}
+                                className={`p-2.5 rounded-xl border text-[11px] font-bold transition-all cursor-pointer ${
+                                  monthlyMonths === opt.months
+                                    ? 'border-[#8c5e47] bg-[#8c5e47] text-white shadow-sm'
+                                    : 'border-[#ebd8c0] bg-white text-[#5c4a45] hover:bg-stone-50'
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
+                          <p className="text-[11px] text-[#8c746c]">
+                            סה״כ לתקופה:{' '}
+                            <strong className="text-[#8c5e47]">
+                              {calcPlanTotal('monthly', pricingRows, {
+                                subPlanDays: selectedSubPlanDays,
+                                months: monthlyMonths,
+                              }).toLocaleString()}{' '}
+                              ₪
+                            </strong>
+                            {' · '}
+                            {formatMonthRangeHe(monthlyStartDate, monthlyMonths)}
+                          </p>
+                        </div>
+                      )}
+
+                      {monthlyStartDate && !dateErrorMsg && (
+                        <div className="space-y-2" data-testid="monthly-calendar-sync">
+                          <label className="block text-xs font-bold text-[#5c4a45]">
+                            6. תאריכים מהיומן ({monthlyConcreteDates.length} מועדים):
+                          </label>
+                          <p className="text-[11px] text-[#8c746c]">
+                            אלה המועדים שישורינו בפועל. אפשר להמשיך רק אם כולם פנויים.
+                          </p>
+                          <ul className="bg-white border border-[#e8dfd3] rounded-xl divide-y divide-[#eee4d8] max-h-48 overflow-y-auto">
+                            {monthlyDatesAvailability.map(({ dateStr, taken }) => (
+                              <li
+                                key={dateStr}
+                                className={`px-3 py-2 text-xs flex justify-between gap-2 ${
+                                  taken ? 'text-red-700 bg-red-50/50' : 'text-[#5c4a45]'
+                                }`}
+                              >
+                                <span>{formatDateHe(dateStr)}</span>
+                                <span className="font-semibold">{taken ? 'תפוס' : 'פנוי'}</span>
+                              </li>
+                            ))}
+                          </ul>
+                          {!monthlyAllFree && monthlyConcreteDates.length > 0 && (
+                            <AlertBanner tone="error">
+                              חלק מהתאריכים תפוסים. שני ימים בשבוע, משמרת, תאריך התחלה או משך.
+                            </AlertBanner>
+                          )}
+                        </div>
                       )}
                     </div>
                   )}
@@ -643,10 +730,11 @@ export default function ClinicBookingApp() {
                     disabled={
                       selectedDays.length !== selectedSubPlanDays ||
                       !selectedShift ||
+                      !monthlyStartDate ||
                       !monthlyAllFree
                     }
                     onClick={() => {
-                      setSelectedDate(monthlyConcreteDates[0] || '');
+                      setSelectedDate(monthlyStartDate || monthlyConcreteDates[0] || '');
                       setStep(3);
                     }}
                     className="w-full bg-[#8c5e47] text-[#faf4eb] py-3.5 rounded-xl font-bold text-sm disabled:bg-[#ebdcc8] disabled:text-[#b8a096] hover:bg-[#724a35] transition-colors shadow-md mt-4 cursor-pointer"
@@ -764,8 +852,14 @@ export default function ClinicBookingApp() {
                   <>
                     <p>📅 <strong>ימים קבועים ({selectedSubPlanDays} בשבוע):</strong> {selectedDays.map((d) => DAY_NAMES[d]).join(', ')}</p>
                     <p>⏰ <strong>משמרת:</strong> {SHIFT_WINDOWS[selectedShift]?.label || selectedShift}</p>
+                    <p>
+                      🗓️ <strong>תקופה:</strong>{' '}
+                      {formatMonthRangeHe(monthlyStartDate, monthlyMonths)}
+                      {' · '}
+                      {monthlyMonths === 1 ? 'חודש אחד' : `${monthlyMonths} חודשים`}
+                    </p>
                     <p className="bg-white/70 p-2 rounded-lg border border-[#ebdcc4] text-[#8c5e47] font-semibold leading-relaxed">
-                      תאריכים שישורינו:{' '}
+                      {monthlyConcreteDates.length} תאריכים שישורינו:{' '}
                       {monthlyConcreteDates.map(formatDateHe).join(' · ')}
                     </p>
                   </>

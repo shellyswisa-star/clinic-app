@@ -25,6 +25,7 @@ describe('pricing correctness', () => {
     expect(calcPlanTotal('hourly', DEFAULT_PRICING)).toBe(360);
     expect(calcPlanTotal('session', DEFAULT_PRICING)).toBe(800);
     expect(calcPlanTotal('monthly', DEFAULT_PRICING, { subPlanDays: 4 })).toBe(2800);
+    expect(calcPlanTotal('monthly', DEFAULT_PRICING, { subPlanDays: 3, months: 3 })).toBe(6600);
 
     // גם אם hourly_shift ישן נשאר ב־DB — החיוב נגזר מהשעה
     const stale = DEFAULT_PRICING.map((row) =>

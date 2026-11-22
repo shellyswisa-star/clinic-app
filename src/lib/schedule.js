@@ -1,6 +1,12 @@
 /** משמרת שעתית: 6 שעות, מתחילה ב־08:00 */
 export const HOURS_PER_SHIFT = 6;
 
+export const MONTHLY_DURATION_OPTIONS = [
+  { months: 1, label: 'חודש אחד' },
+  { months: 3, label: '3 חודשים' },
+  { months: 6, label: '6 חודשים' },
+];
+
 export const SHIFT_WINDOWS = {
   morning: {
     id: 'morning',
@@ -46,30 +52,32 @@ export function getSessionDates(startDateStr, count = 4) {
 }
 
 /**
- * תאריכים קונקרטיים לחודש קבוע:
- * לכל יום בשבוע שנבחר — 4 מופעים קדימה (סה״כ weekdays.length * weeks).
+ * תאריכים קונקרטיים להשכרה חודשית קבועה.
+ * מ־startDateStr (כולל) ועד סוף טווח החודשים — כל הימים בשבוע שנבחרו (א׳–ה׳).
  */
-export function getMonthlyConcreteDates(weekdayIndexes = [], { weeks = 4, fromDate = new Date() } = {}) {
+export function getMonthlyConcreteDates(
+  weekdayIndexes = [],
+  { startDateStr, months = 1 } = {},
+) {
   const uniqueDays = [...new Set(weekdayIndexes.map(Number))].filter((d) => d >= 0 && d <= 4);
-  if (!uniqueDays.length) return [];
+  if (!uniqueDays.length || !startDateStr || months < 1) return [];
 
-  const start = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate());
+  const daySet = new Set(uniqueDays);
+  const start = parseIsoDate(startDateStr);
+  if (Number.isNaN(start.getTime())) return [];
+
+  const end = new Date(start);
+  end.setMonth(end.getMonth() + Number(months));
+
   const result = [];
-
-  uniqueDays.forEach((weekday) => {
-    const cursor = new Date(start);
-    // התחילי ממחר כדי לא לשריין היום בלי כוונה
-    cursor.setDate(cursor.getDate() + 1);
-    while (cursor.getDay() !== weekday) {
-      cursor.setDate(cursor.getDate() + 1);
-    }
-    for (let w = 0; w < weeks; w += 1) {
+  const cursor = new Date(start);
+  while (cursor < end) {
+    if (daySet.has(cursor.getDay())) {
       result.push(toIsoDate(cursor));
-      cursor.setDate(cursor.getDate() + 7);
     }
-  });
-
-  return result.sort();
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return result;
 }
 
 export function formatDateHe(iso) {
@@ -80,4 +88,14 @@ export function formatDateHe(iso) {
     day: 'numeric',
     month: 'numeric',
   });
+}
+
+export function formatMonthRangeHe(startDateStr, months = 1) {
+  if (!startDateStr) return '';
+  const start = parseIsoDate(startDateStr);
+  const end = new Date(start);
+  end.setMonth(end.getMonth() + Number(months));
+  end.setDate(end.getDate() - 1);
+  const opts = { day: 'numeric', month: 'short', year: 'numeric' };
+  return `${start.toLocaleDateString('he-IL', opts)} – ${end.toLocaleDateString('he-IL', opts)}`;
 }

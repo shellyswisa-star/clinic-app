@@ -40,7 +40,7 @@ export const PLAN_META = [
   {
     id: 'monthly',
     title: 'השכרה חודשית קבועה',
-    desc: 'שריון 3–5 ימים קבועים בשבוע — עם תאריכים קונקרטיים מהיומן לחודש הקרוב.',
+    desc: 'שריון 3–5 ימים קבועים בשבוע — בוחרים מתי מתחילים ולכמה חודשים, עם תאריכים מהיומן.',
     unit: '/ חודש',
   },
 ];
@@ -101,9 +101,12 @@ export function buildPlans(prices) {
   });
 }
 
-export function calcPlanTotal(planId, prices, { subPlanDays = 3 } = {}) {
+export function calcPlanTotal(planId, prices, { subPlanDays = 3, months = 1 } = {}) {
   const p = pricingMap(prices);
-  if (planId === 'monthly') return p[`monthly_${subPlanDays}`] || 0;
+  if (planId === 'monthly') {
+    const monthly = p[`monthly_${subPlanDays}`] || 0;
+    return monthly * Math.max(1, Number(months) || 1);
+  }
   // שעתי: תמיד rate × שעות משמרת — לא ערך hourly_shift הישן (260)
   if (planId === 'hourly') return hourlyShiftTotal(prices);
   return p[planId] || 0;

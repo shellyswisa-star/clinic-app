@@ -73,13 +73,12 @@ test.describe('All rental plans — schedule & pricing', () => {
     await expect(page.getByText(/4 תאריכי הפעילות/)).toBeVisible();
   });
 
-  test('monthly flow requires calendar-synced free dates', async ({ page }) => {
+  test('monthly flow: start date + duration + calendar preview', async ({ page }) => {
     await page.goto('/');
     await page.getByText('השכרה חודשית קבועה').click();
     await page.getByRole('button', { name: /3 ימים/ }).click();
     await page.getByRole('button', { name: /08:00 - 14:00/ }).click();
 
-    // בוחרים 3 ימים ראשונים שאינם חסומים
     const dayButtons = page.locator('button', { hasText: /יום / });
     let picked = 0;
     const count = await dayButtons.count();
@@ -91,15 +90,21 @@ test.describe('All rental plans — schedule & pricing', () => {
     }
     expect(picked).toBe(3);
 
+    await expect(page.getByTestId('monthly-start-date')).toBeVisible();
+    await page.getByTestId('monthly-start-date').fill(nextWeekdayIso(5));
+    await page.getByRole('button', { name: '3 חודשים' }).click();
+    await expect(page.getByText(/סה״כ לתקופה/)).toBeVisible();
+    await expect(page.getByText(/6,600|6600/)).toBeVisible();
+
     await expect(page.getByTestId('monthly-calendar-sync')).toBeVisible();
     await expect(page.getByText(/תאריכים מהיומן/)).toBeVisible();
 
     const continueBtn = page.getByRole('button', { name: /המשך לפרטים/ });
-    // אם הכל פנוי — אפשר להמשיך; אם לא — הכפתור disabled + באנר
     if (await continueBtn.isEnabled()) {
       await continueBtn.click();
       await expect(page.getByText('פרטי המזמין/ה')).toBeVisible();
       await expect(page.getByText(/תאריכים שישורינו/)).toBeVisible();
+      await expect(page.getByText('תקופה:')).toBeVisible();
     } else {
       await expect(page.getByText('חלק מהתאריכים תפוסים', { exact: false })).toBeVisible();
     }
