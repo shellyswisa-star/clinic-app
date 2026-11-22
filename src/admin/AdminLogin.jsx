@@ -40,7 +40,7 @@ export default function AdminLogin({ onLoggedIn }) {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="admin-email" className="block text-xs font-bold text-[#5c4a45] mb-1.5">אימייל</label>
+            <label htmlFor="admin-email" className="block text-xs font-bold text-[#5c4a45] mb-1.5">דואר אלקטרוני</label>
             <input
               id="admin-email"
               type="email"
@@ -49,7 +49,7 @@ export default function AdminLogin({ onLoggedIn }) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full p-3 border border-[#cbd5e1] rounded-xl text-sm bg-[#faf8f5] text-[#4a3e3d] focus:outline-none focus:ring-2 focus:ring-[#8c5e47]"
-              placeholder="you@example.com"
+              placeholder="name@example.co.il"
             />
           </div>
 
@@ -78,7 +78,7 @@ export default function AdminLogin({ onLoggedIn }) {
             disabled={isLoading}
             className="w-full bg-[#8c5e47] text-[#faf4eb] py-3.5 rounded-xl font-bold text-sm hover:bg-[#724a35] transition-colors shadow-md disabled:bg-stone-300 cursor-pointer"
           >
-            {isLoading ? 'מתחברת...' : 'כניסה לדשבורד'}
+            {isLoading ? 'מתחברת...' : 'כניסה לניהול'}
           </button>
         </form>
       </div>

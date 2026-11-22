@@ -44,9 +44,9 @@ test.describe('Error handling edge cases', () => {
     });
 
     await page.goto('/admin');
-    await page.getByLabel('אימייל').fill('not-an-admin@example.com');
+    await page.getByLabel('דואר אלקטרוני').fill('not-an-admin@example.com');
     await page.getByLabel('סיסמה').fill('wrong-password-123');
-    await page.getByRole('button', { name: 'כניסה לדשבורד' }).click();
+    await page.getByRole('button', { name: 'כניסה לניהול' }).click();
 
     const alert = page.getByTestId('admin-login-error');
     await expect(alert).toBeVisible({ timeout: 15_000 });

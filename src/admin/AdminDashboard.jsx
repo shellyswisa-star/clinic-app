@@ -222,7 +222,7 @@ export default function AdminDashboard({ session, onLogout }) {
       <header className="bg-[#faf6ef] border-b border-[#e8dfd3] px-4 py-4">
         <div className="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold title-handwritten tracking-wide text-[#5c4a45]">דשבורד מנהלת</h1>
+            <h1 className="text-2xl font-bold title-handwritten tracking-wide text-[#5c4a45]">לוח ניהול</h1>
             <p className="text-xs text-[#8c746c]">{session?.user?.email}</p>
           </div>
           <div className="flex items-center gap-2">
@@ -345,7 +345,7 @@ export default function AdminDashboard({ session, onLogout }) {
                   onChange={(e) => setStatusFilter(e.target.value)}
                   className="p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#8c5e47]"
                 >
-                  <option value="all">כל הסטטוסים</option>
+                  <option value="all">כל המצבים</option>
                   <option value="reserved">שריון זמני</option>
                   <option value="paid">שולם</option>
                   <option value="cancelled">בוטל</option>
@@ -425,7 +425,7 @@ export default function AdminDashboard({ session, onLogout }) {
                   <input
                     value={editForm.plan_id}
                     onChange={(e) => setEditForm({ ...editForm, plan_id: e.target.value })}
-                    placeholder="מסלול (plan_id)"
+                    placeholder="מזהה מסלול"
                     className="p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white"
                   />
                   <input

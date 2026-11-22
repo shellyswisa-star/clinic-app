@@ -17,7 +17,7 @@
 ```bash
 npm run test:unit      # לוגיקה + רגרסיה
 npm run build && npm run test:e2e   # E2E מול preview
-ADMIN_EMAIL='you@example.com' ADMIN_PASSWORD='***' npm run test:e2e  # כולל דשבורד מנהלת
+ADMIN_EMAIL='you@example.com' ADMIN_PASSWORD='***' npm run test:e2e  # כולל לוח ניהול
 npm run test:ci        # כמו ב-CI
 ```
 
@@ -28,7 +28,7 @@ npm run test:ci        # כמו ב-CI
 - [x] כניסה עם סיסמה שגויה נשארת במסך login
 - [x] אתר הזמנות ציבורי בלי auth
 - [x] אין `service_role` ב-HTML
-- [x] E2E מנהלת: login אמיתי → דשבורד/יומן (כשיש secrets)
+- [x] E2E מנהלת: התחברות אמיתית → לוח ניהול/יומן (כשיש secrets)
 - [x] E2E מנהלת: logout חוזר למסך כניסה
 - [ ] **ידני / עתידי:** בדיקת RLS בסופבייס (anon לא מוחק paid; authenticated מנהלת בלבד)
 - [ ] **עתידי:** משתמש authenticated שאינו המנהלת לא מקבל הרשאות יתר (אם יתווספו roles)
@@ -94,7 +94,7 @@ npm run test:ci        # כמו ב-CI
 - `ADMIN_PASSWORD`
 
 בלי `VITE_*` הבילד משתמש בערכי CI דמה (מספיק לרוב בדיקות ה-UI).  
-בלי `ADMIN_*` בדיקות הדשבורד המחוברות **מדלגות** (`describe.skip`) וה-CI עדיין ירוק.
+בלי `ADMIN_*` בדיקות לוח הניהול המחוברות **מדלגות** (`describe.skip`) וה-CI עדיין ירוק.
 
 ## מה עדיין לא אוטומטי (backlog)
 

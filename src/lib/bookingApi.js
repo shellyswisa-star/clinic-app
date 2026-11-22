@@ -37,7 +37,7 @@ export function mapBookingError(error) {
     return 'בחרי משמרת תקינה: בוקר, אחה״צ או יום מלא.';
   }
   if (/unauthorized_invalid_api_key|invalid.?api.?key|no api key/.test(raw)) {
-    return 'חיבור למערכת נכשל. נסי לרענן את העמוד. אם זה נמשך — פני למנהלת.';
+    return 'חיבור למערכת נכשל. נסי לרענן את העמוד. אם זה נמשך — פני למנהלת הקליניקה.';
   }
   if (/jwt expired|session.?expired|not authenticated|invalid.?jwt/.test(raw)) {
     return 'פג תוקף ההתחברות. התחברי מחדש והמשיכי.';
@@ -71,7 +71,7 @@ export function mapAuthError(error) {
     return 'חיבור למערכת נכשל. רענני את העמוד או בדקי הגדרות סביבה.';
   }
   if (/invalid.?login|invalid.?credentials|email.?not.?confirmed|user not found/.test(raw)) {
-    return 'המייל או הסיסמה לא נכונים. נסי שוב.';
+    return 'הדואר האלקטרוני או הסיסמה לא נכונים. נסי שוב.';
   }
   if (/too many requests|rate.?limit/.test(raw)) {
     return 'יותר מדי ניסיונות. המתיני כמה דקות ונסי שוב.';
@@ -80,7 +80,7 @@ export function mapAuthError(error) {
     return 'אין חיבור יציב. בדקי אינטרנט ונסי שוב.';
   }
 
-  return 'לא הצלחנו להתחבר. בדקי מייל וסיסמה ונסי שוב.';
+  return 'לא הצלחנו להתחבר. בדקי דואר אלקטרוני וסיסמה ונסי שוב.';
 }
 
 const GENERIC_BOOKING_FALLBACK = 'משהו השתבש בשמירה. נסי שוב בעוד רגע.';

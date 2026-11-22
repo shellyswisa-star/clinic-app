@@ -20,7 +20,7 @@ export const SHIFT_LABELS = {
 export const PLAN_META = [
   {
     id: 'session',
-    title: 'ססיה שבועית (משמרת קבועה)',
+    title: 'מפגש שבועי (משמרת קבועה)',
     badge: 'הכי מבוקש',
     desc: 'משמרת קבועה אחת לשבוע בכל שבוע לאורך החודש (4 משמרות בחודש).',
     unit: '/ חודש',
@@ -47,7 +47,7 @@ export const PLAN_META = [
 
 /** ברירת מחדל אם הטבלה בסופבייס עדיין לא קיימת / ריקה */
 export const DEFAULT_PRICING = [
-  { id: 'session', label: 'ססיה שבועית', amount: 800, sort_order: 1 },
+  { id: 'session', label: 'מפגש שבועי', amount: 800, sort_order: 1 },
   { id: 'hourly', label: 'מחיר לשעה', amount: 60, sort_order: 2 },
   // נשמר לתאימות לאדמין ישן; החיוב בפועל = hourly × HOURS_PER_SHIFT
   { id: 'hourly_shift', label: `משמרת שעתית (${HOURS_PER_SHIFT} שעות)`, amount: 60 * HOURS_PER_SHIFT, sort_order: 3 },

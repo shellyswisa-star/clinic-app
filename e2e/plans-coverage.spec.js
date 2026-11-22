@@ -66,7 +66,7 @@ test.describe('All rental plans — schedule & pricing', () => {
   test('session flow reaches details with weekly dates summary', async ({ page }) => {
     await mockRestEmpty(page);
     await page.goto('/');
-    await page.getByRole('heading', { name: /ססיה שבועית/ }).click();
+    await page.getByRole('heading', { name: /מפגש שבועי/ }).click();
     await page.locator('input[type="date"]').fill(nextWeekdayIso(3));
     await page.getByRole('button', { name: /08:00 - 14:00/ }).click();
     await page.getByRole('button', { name: /המשך לפרטים/ }).click();

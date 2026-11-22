@@ -5,7 +5,7 @@ test.describe('Public booking — functionality & correct info', () => {
     await page.goto('/');
     await expect(page.getByRole('heading', { name: 'שורשים' })).toBeVisible();
     await expect(page.getByText('בחירת מסלול השכרה')).toBeVisible();
-    await expect(page.getByText('ססיה שבועית')).toBeVisible();
+    await expect(page.getByText('מפגש שבועי')).toBeVisible();
     await expect(page.getByText('השכרה שעתית גמישה')).toBeVisible();
     await expect(page.getByText('השכרה יומית חד-פעמית')).toBeVisible();
     await expect(page.getByText('השכרה חודשית קבועה')).toBeVisible();
@@ -13,7 +13,7 @@ test.describe('Public booking — functionality & correct info', () => {
 
   test('shows default prices consistently on plan cards', async ({ page }) => {
     await page.goto('/');
-    // תצוגת כרטיס: שעתי מציג מחיר לשעה; ססיה מציגה 800
+    // תצוגת כרטיס: שעתי מציג מחיר לשעה; מפגש שבועי מציג 800
     await expect(page.getByText('60 ₪ / שעה')).toBeVisible();
     await expect(page.getByText(/משמרת 6 ש׳ = 360/)).toBeVisible();
     await expect(page.getByText(/800\s*₪/)).toBeVisible();
@@ -70,7 +70,7 @@ test.describe('Resources & background', () => {
 
   test('no duplicate plan cards rendered', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByText('ססיה שבועית (משמרת קבועה)')).toHaveCount(1);
+    await expect(page.getByText('מפגש שבועי (משמרת קבועה)')).toHaveCount(1);
     await expect(page.getByText('השכרה שעתית גמישה')).toHaveCount(1);
     await expect(page.getByText('השכרה יומית חד-פעמית')).toHaveCount(1);
     await expect(page.getByText('השכרה חודשית קבועה')).toHaveCount(1);

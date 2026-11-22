@@ -33,7 +33,7 @@ function parseIsoDate(iso) {
   return new Date(y, m - 1, d);
 }
 
-/** 4 מופעים שבועיים מתאריך התחלה (לססיה) */
+/** 4 מופעים שבועיים מתאריך התחלה (למפגש שבועי) */
 export function getSessionDates(startDateStr, count = 4) {
   if (!startDateStr) return [];
   const dates = [];

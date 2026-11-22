@@ -113,7 +113,7 @@ export function validateBookingForm({ name = '', phone = '' }) {
 const ADMIN_STATUSES = new Set(['reserved', 'paid', 'cancelled']);
 const ADMIN_SHIFTS = new Set(['morning', 'afternoon', 'full-day']);
 
-/** ולידציה לטופס עריכת הזמנה בדשבורד מנהלת */
+/** ולידציה לטופס עריכת הזמנה בלוח הניהול */
 export function validateAdminBookingEdit(form = {}) {
   const base = validateBookingForm({
     name: form.full_name || '',
@@ -130,7 +130,7 @@ export function validateAdminBookingEdit(form = {}) {
   }
 
   if (!ADMIN_STATUSES.has(form.status)) {
-    errors.status = 'סטטוס לא תקין';
+    errors.status = 'מצב לא תקין';
   }
 
   const price = Number(form.total_price);

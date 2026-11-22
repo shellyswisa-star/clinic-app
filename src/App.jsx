@@ -386,7 +386,7 @@ export default function ClinicBookingApp() {
                 <p className="text-xs text-[#8c746c]">מסלול נבחר: <span className="font-bold text-[#8c5e47]">{selectedPlan.title}</span></p>
               </div>
 
-              {/* ססיה שבועית / השכרה שעתית */}
+              {/* מפגש שבועי / השכרה שעתית */}
               {(selectedPlan.id === 'session' || selectedPlan.id === 'hourly') && (
                 <div className="space-y-4">
                   <div>

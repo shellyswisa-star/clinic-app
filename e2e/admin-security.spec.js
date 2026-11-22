@@ -4,16 +4,16 @@ test.describe('Admin security & access control', () => {
   test('admin route requires login (no guest dashboard)', async ({ page }) => {
     await page.goto('/admin');
     await expect(page.getByRole('heading', { name: 'כניסת מנהלת' })).toBeVisible();
-    await expect(page.getByText('דשבורד מנהלת')).toHaveCount(0);
-    await expect(page.getByLabel('אימייל')).toBeVisible();
+    await expect(page.getByText('לוח ניהול')).toHaveCount(0);
+    await expect(page.getByLabel('דואר אלקטרוני')).toBeVisible();
     await expect(page.getByLabel('סיסמה')).toBeVisible();
   });
 
   test('invalid credentials stay on login and show error', async ({ page }) => {
     await page.goto('/admin');
-    await page.getByLabel('אימייל').fill('not-an-admin@example.com');
+    await page.getByLabel('דואר אלקטרוני').fill('not-an-admin@example.com');
     await page.getByLabel('סיסמה').fill('wrong-password-123');
-    await page.getByRole('button', { name: 'כניסה לדשבורד' }).click();
+    await page.getByRole('button', { name: 'כניסה לניהול' }).click();
     await expect(page.getByRole('heading', { name: 'כניסת מנהלת' })).toBeVisible();
     await expect(page.getByTestId('admin-login-error')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId('admin-login-error')).toContainText(/סיסמה|חיבור|התחבר/);

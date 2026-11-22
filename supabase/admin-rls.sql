@@ -1,5 +1,5 @@
 -- הרצה ב-Supabase SQL Editor
--- מטרה: אתר הזמנות ציבורי בלי login, דשבורד מנהלת רק אחרי Auth
+-- מטרה: אתר הזמנות ציבורי בלי התחברות, לוח ניהול רק אחרי אימות
 
 -- 1) ודאי ש-RLS פעיל
 alter table public.bookings enable row level security;

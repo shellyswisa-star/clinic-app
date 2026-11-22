@@ -170,7 +170,7 @@ describe('validateAdminBookingEdit', () => {
     expect(validateAdminBookingEdit({ ...valid, selected_date: '' }).ok).toBe(false);
     expect(validateAdminBookingEdit({ ...valid, selected_shift: 'evening' }).message).toMatch(/משמרת/);
     expect(validateAdminBookingEdit({ ...valid, total_price: -5 }).message).toMatch(/סכום/);
-    expect(validateAdminBookingEdit({ ...valid, status: 'weird' }).message).toMatch(/סטטוס/);
+    expect(validateAdminBookingEdit({ ...valid, status: 'weird' }).message).toMatch(/מצב/);
   });
 
   it('allows cancelled without date', () => {

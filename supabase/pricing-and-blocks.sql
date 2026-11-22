@@ -1,5 +1,5 @@
 -- הרצה ב-Supabase SQL Editor
--- מחירים לניהול מדשבורד + חסימת משמרות קבועות/חד-פעמיות
+-- מחירים לניהול + חסימת משמרות קבועות/חד-פעמיות
 
 create table if not exists public.pricing (
   id text primary key,
@@ -27,7 +27,7 @@ create index if not exists blocked_slots_day_idx on public.blocked_slots (day_in
 
 -- ערכי התחלה (לא דורסים אם כבר קיימים)
 insert into public.pricing (id, label, amount, sort_order) values
-  ('session', 'ססיה שבועית', 800, 1),
+  ('session', 'מפגש שבועי', 800, 1),
   ('hourly', 'מחיר לשעה', 60, 2),
   ('hourly_shift', 'משמרת שעתית (6 שעות)', 360, 3),
   ('daily', 'יום מלא', 500, 4),

@@ -7,7 +7,7 @@ describeAdmin('Admin dashboard (authenticated)', () => {
   test('logs in and shows bookings calendar by default', async ({ page }) => {
     await loginAsAdmin(page);
 
-    await expect(page.getByRole('heading', { name: 'דשבורד מנהלת' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'לוח ניהול' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'יומן' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'רשימה' })).toBeVisible();
 
@@ -15,7 +15,7 @@ describeAdmin('Admin dashboard (authenticated)', () => {
     await expect(page.getByRole('button', { name: '›' })).toBeVisible();
     await expect(page.getByRole('button', { name: '‹' })).toBeVisible();
 
-    // מקרא סטטוסים ביומן (לא ה-option בפילטר הסטטוסים)
+    // מקרא מצבים ביומן (לא האפשרות בסינון המצבים)
     await expect(page.locator('span.bg-amber-100', { hasText: 'שריון' })).toBeVisible();
     await expect(page.locator('span.bg-emerald-100', { hasText: 'שולם' })).toBeVisible();
     await expect(page.locator('span.border-dashed', { hasText: 'חסום' })).toBeVisible();
@@ -77,6 +77,6 @@ describeAdmin('Admin dashboard (authenticated)', () => {
     await loginAsAdmin(page);
     await page.getByRole('button', { name: 'התנתקות' }).click();
     await expect(page.getByRole('heading', { name: 'כניסת מנהלת' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'דשבורד מנהלת' })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'לוח ניהול' })).toHaveCount(0);
   });
 });

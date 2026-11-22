@@ -21,16 +21,16 @@ export async function loginAsAdmin(page) {
   }
 
   await page.goto('/admin');
-  await page.getByLabel('אימייל').fill(creds.email);
+  await page.getByLabel('דואר אלקטרוני').fill(creds.email);
   await page.getByLabel('סיסמה').fill(creds.password);
-  await page.getByRole('button', { name: 'כניסה לדשבורד' }).click();
+  await page.getByRole('button', { name: 'כניסה לניהול' }).click();
 
-  const dashboard = page.getByRole('heading', { name: 'דשבורד מנהלת' });
-  const loginError = page.locator('p.text-red-600, p.text-red-700').first();
+  const adminHome = page.getByRole('heading', { name: 'לוח ניהול' });
+  const loginError = page.getByTestId('admin-login-error');
 
   try {
     await Promise.race([
-      dashboard.waitFor({ state: 'visible', timeout: 20_000 }),
+      adminHome.waitFor({ state: 'visible', timeout: 20_000 }),
       loginError.waitFor({ state: 'visible', timeout: 20_000 }).then(async () => {
         const message = (await loginError.textContent())?.trim() || 'unknown login error';
         throw new Error(`Admin login failed: ${message}`);
@@ -43,5 +43,5 @@ export async function loginAsAdmin(page) {
     throw err;
   }
 
-  await dashboard.waitFor({ state: 'visible', timeout: 5_000 });
+  await adminHome.waitFor({ state: 'visible', timeout: 5_000 });
 }

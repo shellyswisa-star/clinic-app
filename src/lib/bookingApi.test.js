@@ -35,7 +35,7 @@ describe('mapBookingError', () => {
 
 describe('mapAuthError', () => {
   it('maps invalid credentials and API key failures', () => {
-    expect(mapAuthError({ message: 'Invalid login credentials' })).toMatch(/סיסמה/);
+    expect(mapAuthError({ message: 'Invalid login credentials' })).toMatch(/דואר|סיסמה/);
     expect(mapAuthError({ message: 'Invalid API key' })).toMatch(/חיבור למערכת/);
     expect(mapAuthError({ message: 'Request rate limit reached' })).toMatch(/יותר מדי/);
   });
