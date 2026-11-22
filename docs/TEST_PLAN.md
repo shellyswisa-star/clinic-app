@@ -62,6 +62,11 @@ npm run test:ci        # כמו ב-CI
 - [x] Unit: `findDuplicateActiveBookings` מזהה כפילויות בנתונים
 - [x] DB: `create_booking_safe` + trigger + advisory lock (`supabase/prevent-double-booking.sql`)
 - [x] Unit: מיפוי שגיאות `slot_already_booked` / `slot_blocked`
+- [x] Unit: מיפוי edge cases (API key / JWT / RLS / רשת / auth)
+- [x] Unit: ולידציית טופס עריכת הזמנה באדמין
+- [x] E2E: login עם credentials שגויים → הודעת עברית
+- [x] E2E: שריון ציבורי עם `slot_already_booked` / invalid API key → באנר שגיאה
+- [x] E2E מנהלת: PATCH כושל / ולידציה בטופס עריכה (כשיש secrets)
 
 ### 6) אין חיוב כפול
 - [x] Unit: `canStartSave` חוסם כש-`isSaving`

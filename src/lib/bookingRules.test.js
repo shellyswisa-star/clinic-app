@@ -5,6 +5,7 @@ import {
   findDuplicateActiveBookings,
   isShiftTaken,
   shiftsOverlap,
+  validateAdminBookingEdit,
   validateBookingForm,
   HOLD_WINDOW_MS,
 } from './bookingRules';
@@ -148,6 +149,34 @@ describe('validateBookingForm', () => {
 
   it('accepts valid Israeli mobile', () => {
     expect(validateBookingForm({ name: 'שלי סוויסה', phone: '050-1234567' }).ok).toBe(true);
+  });
+});
+
+describe('validateAdminBookingEdit', () => {
+  const valid = {
+    full_name: 'שלי',
+    phone: '0501234567',
+    selected_date: '2026-11-10',
+    selected_shift: 'full-day',
+    total_price: 260,
+    status: 'paid',
+  };
+
+  it('accepts a complete edit form', () => {
+    expect(validateAdminBookingEdit(valid).ok).toBe(true);
+  });
+
+  it('requires date for active bookings and valid price/shift/status', () => {
+    expect(validateAdminBookingEdit({ ...valid, selected_date: '' }).ok).toBe(false);
+    expect(validateAdminBookingEdit({ ...valid, selected_shift: 'evening' }).message).toMatch(/משמרת/);
+    expect(validateAdminBookingEdit({ ...valid, total_price: -5 }).message).toMatch(/סכום/);
+    expect(validateAdminBookingEdit({ ...valid, status: 'weird' }).message).toMatch(/סטטוס/);
+  });
+
+  it('allows cancelled without date', () => {
+    expect(
+      validateAdminBookingEdit({ ...valid, status: 'cancelled', selected_date: '' }).ok,
+    ).toBe(true);
   });
 });
 

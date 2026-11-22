@@ -28,6 +28,7 @@ export default function ClinicBookingApp() {
   const [formData, setFormData] = useState({ name: '', phone: '', profession: '', cardNumber: '', expiry: '', cvv: '' });
   
   const [formErrors, setFormErrors] = useState({});
+  const [actionError, setActionError] = useState('');
   const [existingBookings, setExistingBookings] = useState([]);
   const [pricingRows, setPricingRows] = useState(DEFAULT_PRICING);
   const [blockedSlots, setBlockedSlots] = useState([]);
@@ -138,11 +139,12 @@ export default function ClinicBookingApp() {
 
   const handleReserveBooking = async (e) => {
     e.preventDefault();
+    setActionError('');
     if (!validateForm()) return;
     if (!canStartSave({ isSaving })) return;
 
     if (isShiftTaken(selectedDate, selectedShift)) {
-      alert('⚠️ המשמרת שבחרת כבר תפוסה!');
+      setActionError('המשמרת שבחרת כבר תפוסה. נסי תאריך או משמרת אחרת.');
       return;
     }
 
@@ -163,28 +165,30 @@ export default function ClinicBookingApp() {
       });
 
       if (bookingError) {
-        const mapped = new Error(mapBookingError(bookingError));
-        mapped.cause = bookingError;
-        throw mapped;
+        throw new Error(mapBookingError(bookingError));
       }
 
       if (bookingData?.id) {
         setCurrentBookingId(bookingData.id);
       }
 
-      await supabase.from('orders').insert([
+      const { error: orderError } = await supabase.from('orders').insert([
         {
           customer_name: formData.name,
           total_amount: totalPrice,
           status: 'pending'
         }
       ]);
+      if (orderError) {
+        throw new Error(mapBookingError(orderError));
+      }
 
       await fetchBookings();
+      setActionError('');
       setStep(4);
     } catch (err) {
       console.error('❌ שגיאה בשמירה:', err.message);
-      alert(`שגיאה בשמירה: ${err.message}`);
+      setActionError(err.message || 'שגיאה בשמירת ההזמנה');
     } finally {
       setIsSaving(false);
     }
@@ -192,24 +196,29 @@ export default function ClinicBookingApp() {
 
   const handlePaymentSuccess = async (e) => {
     e.preventDefault();
+    setActionError('');
     if (!canStartSave({ isSaving })) return;
     setIsSaving(true);
 
     try {
       if (currentBookingId) {
-        await supabase
+        const { error: bookingError } = await supabase
           .from('bookings')
           .update({ status: 'paid' })
           .eq('id', currentBookingId);
+        if (bookingError) throw bookingError;
 
-        await supabase
+        const { error: orderError } = await supabase
           .from('orders')
           .update({ status: 'paid' })
           .eq('customer_name', formData.name);
+        if (orderError) throw orderError;
       }
+      setActionError('');
       setStep(5);
     } catch (err) {
       console.error('❌ שגיאה בעדכון תשלום:', err);
+      setActionError(mapBookingError(err) || 'עדכון התשלום נכשל. נסי שוב.');
     } finally {
       setIsSaving(false);
     }
@@ -598,6 +607,16 @@ export default function ClinicBookingApp() {
                 <p className="text-xs text-[#8c746c]">הזיני את פרטייך לשריון התור לפני תשלום</p>
               </div>
 
+              {actionError && (
+                <p
+                  role="alert"
+                  data-testid="booking-action-error"
+                  className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl p-3"
+                >
+                  {actionError}
+                </p>
+              )}
+
               <div className="space-y-3">
                 <div>
                   <input 
@@ -707,6 +726,16 @@ export default function ClinicBookingApp() {
                 <h2 className="text-xl font-bold text-[#5c4a45] title-handwritten tracking-wide">תשלום מאובטח</h2>
                 <p className="text-xs text-[#8c746c]">המקום שוריין עבורך. השלימי את התשלום להנפקת קבלה</p>
               </div>
+
+              {actionError && (
+                <p
+                  role="alert"
+                  data-testid="booking-action-error"
+                  className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl p-3"
+                >
+                  {actionError}
+                </p>
+              )}
 
               <div className="space-y-3">
                 <label className="block text-xs font-bold text-[#5c4a45]">בחרי אמצעי תשלום:</label>

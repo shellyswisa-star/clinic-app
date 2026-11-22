@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { SHIFT_LABELS } from '../clinicConfig';
+import { mapAdminError, mapBookingError } from '../lib/bookingApi';
+import { validateAdminBookingEdit } from '../lib/bookingRules';
 import AdminPricing from './AdminPricing.jsx';
 import AdminBlockedSlots from './AdminBlockedSlots.jsx';
 import AdminBookingsCalendar from './AdminBookingsCalendar.jsx';
@@ -61,11 +63,12 @@ export default function AdminDashboard({ session, onLogout }) {
 
       if (blockedRes.error) {
         console.error(blockedRes.error);
+        setError(mapAdminError(blockedRes.error, 'טעינת חסימות נכשלה'));
       } else {
         setBlockedSlots(blockedRes.data || []);
       }
     } catch (err) {
-      setError(err.message || 'לא הצלחנו לטעון הזמנות');
+      setError(mapAdminError(err, 'לא הצלחנו לטעון הזמנות'));
     } finally {
       setLoading(false);
     }
@@ -91,6 +94,7 @@ export default function AdminDashboard({ session, onLogout }) {
 
   const openEdit = (booking) => {
     setNotice('');
+    setError('');
     setEditForm({
       id: booking.id,
       full_name: booking.full_name || '',
@@ -102,9 +106,29 @@ export default function AdminDashboard({ session, onLogout }) {
       status: booking.status || 'reserved',
       plan_id: booking.plan_id || '',
     });
+    // אחרי בחירה מהיומן — גלגלי למעלה לטופס העריכה
+    setTimeout(() => {
+      document.getElementById('admin-edit-booking')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    }, 50);
   };
 
-  const closeEdit = () => setEditForm(emptyEdit);
+  const closeEdit = () => {
+    setEditForm(emptyEdit);
+    setError('');
+  };
+
+  const showError = (message) => {
+    setError(message);
+    setTimeout(() => {
+      document.querySelector('[data-testid="admin-error"]')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+      });
+    }, 30);
+  };
 
   const handleSaveEdit = async (e) => {
     e.preventDefault();
@@ -112,6 +136,13 @@ export default function AdminDashboard({ session, onLogout }) {
     setIsSaving(true);
     setNotice('');
     setError('');
+
+    const validation = validateAdminBookingEdit(editForm);
+    if (!validation.ok) {
+      showError(validation.message);
+      setIsSaving(false);
+      return;
+    }
 
     try {
       const { error: updateError } = await supabase
@@ -133,7 +164,7 @@ export default function AdminDashboard({ session, onLogout }) {
       closeEdit();
       await fetchBookings();
     } catch (err) {
-      setError(err.message || 'עדכון ההזמנה נכשל');
+      showError(mapBookingError(err) || 'עדכון ההזמנה נכשל');
     } finally {
       setIsSaving(false);
     }
@@ -155,7 +186,7 @@ export default function AdminDashboard({ session, onLogout }) {
       if (editForm.id === booking.id) closeEdit();
       await fetchBookings();
     } catch (err) {
-      setError(err.message || 'ביטול ההזמנה נכשל');
+      showError(mapBookingError(err) || 'ביטול ההזמנה נכשל');
     }
   };
 
@@ -216,7 +247,13 @@ export default function AdminDashboard({ session, onLogout }) {
           <p className="text-sm text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl p-3">{notice}</p>
         )}
         {error && (
-          <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl p-3">{error}</p>
+          <p
+            role="alert"
+            data-testid="admin-error"
+            className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl p-3"
+          >
+            {error}
+          </p>
         )}
 
         {tab === 'pricing' && (
@@ -277,6 +314,7 @@ export default function AdminDashboard({ session, onLogout }) {
 
             {editForm.id && (
               <form
+                id="admin-edit-booking"
                 onSubmit={handleSaveEdit}
                 className="bg-[#faf6ef] border border-[#e8dfd3] rounded-2xl p-4 space-y-3 shadow-sm"
               >
@@ -286,6 +324,16 @@ export default function AdminDashboard({ session, onLogout }) {
                     סגירה
                   </button>
                 </div>
+
+                {error && (
+                  <p
+                    role="alert"
+                    data-testid="admin-edit-error"
+                    className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl p-3"
+                  >
+                    {error}
+                  </p>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <input

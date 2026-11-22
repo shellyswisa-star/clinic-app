@@ -110,6 +110,43 @@ export function validateBookingForm({ name = '', phone = '' }) {
   };
 }
 
+const ADMIN_STATUSES = new Set(['reserved', 'paid', 'cancelled']);
+const ADMIN_SHIFTS = new Set(['morning', 'afternoon', 'full-day']);
+
+/** ולידציה לטופס עריכת הזמנה בדשבורד מנהלת */
+export function validateAdminBookingEdit(form = {}) {
+  const base = validateBookingForm({
+    name: form.full_name || '',
+    phone: form.phone || '',
+  });
+  const errors = { ...base.errors };
+
+  if (!form.selected_date && form.status !== 'cancelled') {
+    errors.selected_date = 'נא לבחור תאריך';
+  }
+
+  if (!ADMIN_SHIFTS.has(form.selected_shift)) {
+    errors.selected_shift = 'משמרת לא תקינה';
+  }
+
+  if (!ADMIN_STATUSES.has(form.status)) {
+    errors.status = 'סטטוס לא תקין';
+  }
+
+  const price = Number(form.total_price);
+  if (form.total_price === '' || form.total_price === null || form.total_price === undefined) {
+    errors.total_price = 'נא להזין סכום';
+  } else if (Number.isNaN(price) || price < 0) {
+    errors.total_price = 'סכום חייב להיות מספר שאינו שלילי';
+  }
+
+  return {
+    ok: Object.keys(errors).length === 0,
+    errors,
+    message: Object.values(errors)[0] || '',
+  };
+}
+
 /** מונע חיוב/שמירה כפולה בזמן בקשה פתוחה */
 export function canStartSave({ isSaving }) {
   return !isSaving;

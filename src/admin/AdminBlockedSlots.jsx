@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { DAY_NAMES, SHIFT_LABELS } from '../clinicConfig';
+import { mapAdminError } from '../lib/bookingApi';
 
 const emptyForm = {
   mode: 'recurring',
@@ -28,7 +29,7 @@ export default function AdminBlockedSlots({ onNotice, onError }) {
       if (error) throw error;
       setSlots(data || []);
     } catch (err) {
-      onError(err.message || 'טעינת חסימות נכשלה. הריצי את supabase/pricing-and-blocks.sql');
+      onError(mapAdminError(err, 'טעינת חסימות נכשלה. הריצי את supabase/pricing-and-blocks.sql'));
       setSlots([]);
     } finally {
       setLoading(false);
@@ -65,7 +66,7 @@ export default function AdminBlockedSlots({ onNotice, onError }) {
       setForm(emptyForm);
       await load();
     } catch (err) {
-      onError(err.message || 'הוספת חסימה נכשלה');
+      onError(mapAdminError(err, 'הוספת חסימה נכשלה'));
     } finally {
       setSaving(false);
     }
@@ -81,7 +82,7 @@ export default function AdminBlockedSlots({ onNotice, onError }) {
       onNotice('החסימה הוסרה');
       await load();
     } catch (err) {
-      onError(err.message || 'מחיקת חסימה נכשלה');
+      onError(mapAdminError(err, 'מחיקת חסימה נכשלה'));
     }
   };
 

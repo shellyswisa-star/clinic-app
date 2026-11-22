@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '../supabaseClient';
+import { mapAuthError } from '../lib/bookingApi';
 
 export default function AdminLogin({ onLoggedIn }) {
   const [email, setEmail] = useState('');
@@ -21,7 +22,7 @@ export default function AdminLogin({ onLoggedIn }) {
       if (signInError) throw signInError;
       onLoggedIn(data.session);
     } catch (err) {
-      setError(err.message || 'ההתחברות נכשלה. בדקי מייל וסיסמה.');
+      setError(mapAuthError(err));
     } finally {
       setIsLoading(false);
     }
@@ -66,7 +67,11 @@ export default function AdminLogin({ onLoggedIn }) {
           </div>
 
           {error && (
-            <p className="text-red-600 text-xs bg-red-50 border border-red-200 rounded-xl p-3">
+            <p
+              role="alert"
+              data-testid="admin-login-error"
+              className="text-red-600 text-xs bg-red-50 border border-red-200 rounded-xl p-3"
+            >
               {error}
             </p>
           )}

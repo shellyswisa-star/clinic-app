@@ -15,8 +15,8 @@ test.describe('Admin security & access control', () => {
     await page.getByLabel('סיסמה').fill('wrong-password-123');
     await page.getByRole('button', { name: 'כניסה לדשבורד' }).click();
     await expect(page.getByRole('heading', { name: 'כניסת מנהלת' })).toBeVisible();
-    // הודעת שגיאה מ-Supabase / כללי auth
-    await expect(page.locator('p.text-red-600, p.text-red-700').first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('admin-login-error')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('admin-login-error')).toContainText(/מייל או סיסמה|API|רשת|התחברות/);
   });
 
   test('public booking stays available without auth', async ({ page }) => {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { DEFAULT_PRICING } from '../clinicConfig';
+import { mapAdminError } from '../lib/bookingApi';
 
 export default function AdminPricing({ onNotice, onError }) {
   const [rows, setRows] = useState([]);
@@ -19,7 +20,7 @@ export default function AdminPricing({ onNotice, onError }) {
       if (error) throw error;
       setRows(data?.length ? data : DEFAULT_PRICING.map((r) => ({ ...r })));
     } catch (err) {
-      onError(err.message || 'טעינת מחירים נכשלה. הריצי את supabase/pricing-and-blocks.sql');
+      onError(mapAdminError(err, 'טעינת מחירים נכשלה. הריצי את supabase/pricing-and-blocks.sql'));
       setRows(DEFAULT_PRICING.map((r) => ({ ...r })));
     } finally {
       setLoading(false);
@@ -55,7 +56,7 @@ export default function AdminPricing({ onNotice, onError }) {
       onNotice('המחירים נשמרו ויופיעו באתר ההזמנות');
       await load();
     } catch (err) {
-      onError(err.message || 'שמירת מחירים נכשלה');
+      onError(mapAdminError(err, 'שמירת מחירים נכשלה'));
     } finally {
       setSaving(false);
     }

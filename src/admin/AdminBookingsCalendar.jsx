@@ -135,10 +135,17 @@ export default function AdminBookingsCalendar({
             const isToday = key === toDateKey(new Date());
 
             return (
-              <button
+              <div
                 key={key}
-                type="button"
+                role="button"
+                tabIndex={0}
                 onClick={() => setSelectedDay(key)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setSelectedDay(key);
+                  }
+                }}
                 className={`min-h-[7.5rem] sm:min-h-[9rem] p-1.5 text-right border border-[#e8dfd3] align-top transition-colors cursor-pointer ${
                   isSelected ? 'ring-2 ring-inset ring-[#8c5e47] bg-[#f5ebe0]' : 'bg-white hover:bg-[#fcfaf7]'
                 } ${!inMonth ? 'opacity-40' : ''} ${isWeekend && inMonth ? 'bg-stone-50' : ''} ${
@@ -162,22 +169,29 @@ export default function AdminBookingsCalendar({
 
                 <div className="space-y-1">
                   {dayBookings.slice(0, 3).map((booking) => (
-                    <div
+                    <button
                       key={booking.id}
-                      className={`rounded-md border px-1 py-0.5 text-[9px] sm:text-[10px] leading-tight ${statusClasses(booking.status)}`}
+                      type="button"
+                      title="לחצי לעריכת ההזמנה"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedDay(key);
+                        onSelectBooking(booking);
+                      }}
+                      className={`w-full text-right rounded-md border px-1 py-0.5 text-[9px] sm:text-[10px] leading-tight cursor-pointer hover:brightness-95 hover:ring-1 hover:ring-[#8c5e47]/40 ${statusClasses(booking.status)}`}
                     >
                       <p className="font-bold truncate">{booking.full_name || 'ללא שם'}</p>
                       <p className="truncate opacity-80">
                         {SHIFT_LABELS[booking.selected_shift] || booking.selected_shift}
                         {booking.phone ? ` · ${booking.phone}` : ''}
                       </p>
-                    </div>
+                    </button>
                   ))}
                   {dayBookings.length > 3 && (
                     <p className="text-[9px] text-[#8c746c] font-semibold">+{dayBookings.length - 3} נוספות</p>
                   )}
                 </div>
-              </button>
+              </div>
             );
           })}
         </div>

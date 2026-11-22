@@ -28,7 +28,7 @@ describeAdmin('Admin dashboard (authenticated)', () => {
     await expect(page.getByPlaceholder('חיפוש לפי שם, טלפון או מסלול...')).toBeVisible();
 
     await page.getByRole('button', { name: 'יומן' }).click();
-    await expect(page.getByText('שריון', { exact: true })).toBeVisible();
+    await expect(page.locator('span.bg-amber-100', { hasText: 'שריון' })).toBeVisible();
   });
 
   test('opens pricing and blocked-slots tabs', async ({ page }) => {
