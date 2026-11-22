@@ -15,10 +15,10 @@ describeAdmin('Admin dashboard (authenticated)', () => {
     await expect(page.getByRole('button', { name: '›' })).toBeVisible();
     await expect(page.getByRole('button', { name: '‹' })).toBeVisible();
 
-    // מקרא סטטוסים
-    await expect(page.getByText('שריון', { exact: true })).toBeVisible();
-    await expect(page.getByText('שולם', { exact: true })).toBeVisible();
-    await expect(page.getByText('חסום', { exact: true }).first()).toBeVisible();
+    // מקרא סטטוסים ביומן (לא ה-option בפילטר הסטטוסים)
+    await expect(page.locator('span.bg-amber-100', { hasText: 'שריון' })).toBeVisible();
+    await expect(page.locator('span.bg-emerald-100', { hasText: 'שולם' })).toBeVisible();
+    await expect(page.locator('span.border-dashed', { hasText: 'חסום' })).toBeVisible();
   });
 
   test('switches between calendar and list views', async ({ page }) => {
