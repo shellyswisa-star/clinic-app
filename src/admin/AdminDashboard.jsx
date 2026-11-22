@@ -3,7 +3,14 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { SHIFT_LABELS } from '../clinicConfig';
 import { mapAdminError, mapBookingError } from '../lib/bookingApi';
-import { validateAdminBookingEdit } from '../lib/bookingRules';
+import { isShiftTaken, validateAdminBookingEdit } from '../lib/bookingRules';
+import {
+  PLAN_LABELS,
+  findSeriesMembers,
+  groupBookingsForList,
+  summarizeSeries,
+} from '../lib/bookingSeries';
+import { formatDateHe } from '../lib/schedule';
 import AlertBanner from '../components/AlertBanner.jsx';
 import AdminPricing from './AdminPricing.jsx';
 import AdminBlockedSlots from './AdminBlockedSlots.jsx';
@@ -32,6 +39,9 @@ const emptyEdit = {
   total_price: '',
   status: 'reserved',
   plan_id: '',
+  series_id: null,
+  series_label: '',
+  created_at: null,
 };
 
 export default function AdminDashboard({ session, onLogout }) {
@@ -48,10 +58,12 @@ export default function AdminDashboard({ session, onLogout }) {
   const [editForm, setEditForm] = useState(emptyEdit);
   const [isSaving, setIsSaving] = useState(false);
   const [notice, setNotice] = useState('');
+  const [expandedSeries, setExpandedSeries] = useState(() => new Set());
 
-  const fetchBookings = async () => {
+  const fetchBookings = async ({ clearError = false } = {}) => {
     setLoading(true);
-    setError('');
+    // לא מוחקים שגיאת שמירה קיימת בזמן רענון אחרי פעולה — אחרת 400 «נעלם» והצלחה נשארת
+    if (clearError) setError('');
     try {
       const [{ data, error: fetchError }, blockedRes] = await Promise.all([
         supabase
@@ -78,10 +90,30 @@ export default function AdminDashboard({ session, onLogout }) {
   };
 
   useEffect(() => {
-    if (tab === 'bookings') fetchBookings();
+    if (tab === 'bookings') fetchBookings({ clearError: true });
   }, [tab]);
 
+  const assertOccurrenceSlotFree = (memberId, nextDate, nextShift) => {
+    if (!nextDate || !nextShift) return { ok: true };
+    const taken = isShiftTaken({
+      dateStr: String(nextDate).slice(0, 10),
+      shiftStr: nextShift,
+      existingBookings: bookings.filter((b) => String(b.id) !== String(memberId)),
+      blockedSlots: [], // חסימות — מנהלת יכולה לעקוף; התנגשות בין הזמנות — לא
+    });
+    if (!taken) return { ok: true };
+    return {
+      ok: false,
+      message:
+        'לא ניתן לעדכן: התאריך והמשמרת האלה כבר תפוסים בהזמנה אחרת (כולל מועד אחר באותה סדרה). בחרי יום אחר.',
+    };
+  };
+
   const latestCreated = useMemo(() => bookings[0] || null, [bookings]);
+  const latestSeries = useMemo(() => {
+    if (!latestCreated) return null;
+    return summarizeSeries(findSeriesMembers(latestCreated, bookings));
+  }, [latestCreated, bookings]);
 
   const filteredBookings = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -107,6 +139,20 @@ export default function AdminDashboard({ session, onLogout }) {
     });
   }, [bookings, statusFilter, search, dateFilterMode, dateFilterValue]);
 
+  const listRows = useMemo(
+    () => groupBookingsForList(filteredBookings),
+    [filteredBookings],
+  );
+
+  const toggleSeriesExpanded = (key) => {
+    setExpandedSeries((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
   const switchViewMode = (mode) => {
     setViewMode(mode);
     setEditForm(emptyEdit);
@@ -127,6 +173,9 @@ export default function AdminDashboard({ session, onLogout }) {
       total_price: booking.total_price ?? '',
       status: booking.status || 'reserved',
       plan_id: booking.plan_id || '',
+      series_id: booking.series_id || null,
+      series_label: booking.series_label || '',
+      created_at: booking.created_at || null,
     });
     // אחרי בחירה מהיומן — גלגלי למעלה לטופס העריכה
     setTimeout(() => {
@@ -137,12 +186,20 @@ export default function AdminDashboard({ session, onLogout }) {
     }, 50);
   };
 
+  const seriesMembers = useMemo(() => {
+    if (!editForm.id) return [];
+    const current = bookings.find((b) => b.id === editForm.id) || editForm;
+    return findSeriesMembers(current, bookings);
+  }, [editForm, bookings]);
+
+  const seriesInfo = useMemo(() => summarizeSeries(seriesMembers), [seriesMembers]);
+
   const closeEdit = () => {
     setEditForm(emptyEdit);
-    setError('');
   };
 
   const showError = (message) => {
+    setNotice('');
     setError(message);
     setTimeout(() => {
       const el =
@@ -154,7 +211,7 @@ export default function AdminDashboard({ session, onLogout }) {
 
   const handleSaveEdit = async (e) => {
     e.preventDefault();
-    if (!editForm.id) return;
+    if (!editForm.id || isSaving) return;
     setIsSaving(true);
     setNotice('');
     setError('');
@@ -166,23 +223,80 @@ export default function AdminDashboard({ session, onLogout }) {
       return;
     }
 
+    const original = bookings.find((b) => String(b.id) === String(editForm.id));
+    const nextDate = editForm.selected_date || null;
+    const nextShift = editForm.selected_shift;
+    const dateChanged = !original || original.selected_date !== nextDate;
+    const shiftChanged = !original || original.selected_shift !== nextShift;
+
+    if (dateChanged || shiftChanged) {
+      const slotCheck = assertOccurrenceSlotFree(editForm.id, nextDate, nextShift);
+      if (!slotCheck.ok) {
+        showError(slotCheck.message);
+        setIsSaving(false);
+        return;
+      }
+    }
+
     try {
-      const { error: updateError } = await supabase
+      const contact = {
+        full_name: editForm.full_name.trim(),
+        phone: editForm.phone.trim(),
+        profession: editForm.profession.trim(),
+      };
+      const members = findSeriesMembers(editForm, bookings);
+
+      // סנכרון פרטי לקוחה לשאר הסדרה — בלי לגעת בתאריכים שלהם
+      if (members.length > 1) {
+        const otherIds = members
+          .map((m) => m.id)
+          .filter((id) => String(id) !== String(editForm.id));
+        if (otherIds.length) {
+          const { error: syncError } = await supabase
+            .from('bookings')
+            .update(contact)
+            .in('id', otherIds);
+          if (syncError) throw syncError;
+        }
+      }
+
+      // תמיד שולחים תאריך+משמרת למועד הנוכחי, ואז מוודאים מה חזר מהשרת
+      const { data: updated, error: updateError } = await supabase
         .from('bookings')
         .update({
-          full_name: editForm.full_name.trim(),
-          phone: editForm.phone.trim(),
-          profession: editForm.profession.trim(),
-          selected_date: editForm.selected_date || null,
-          selected_shift: editForm.selected_shift,
+          ...contact,
+          selected_date: nextDate,
+          selected_shift: nextShift,
           total_price: Number(editForm.total_price) || 0,
           status: editForm.status,
           plan_id: editForm.plan_id,
         })
-        .eq('id', editForm.id);
+        .eq('id', editForm.id)
+        .select('id, selected_date, selected_shift')
+        .maybeSingle();
 
       if (updateError) throw updateError;
-      setNotice('ההזמנה עודכנה');
+      if (!updated?.id) {
+        throw new Error('העדכון לא נשמר. רענני את הרשימה ונסי שוב.');
+      }
+      if (dateChanged && updated.selected_date !== nextDate) {
+        throw new Error(
+          'התאריך לא נשמר — ייתכן שהמועד כבר תפוס בהזמנה אחרת. התאריך נשאר כמו שהיה.',
+        );
+      }
+
+      setError('');
+      if (dateChanged || shiftChanged) {
+        setNotice(
+          members.length > 1
+            ? 'המועד עודכן · פרטי הלקוחה עודכנו בכל הסדרה'
+            : 'ההזמנה עודכנה',
+        );
+      } else {
+        setNotice(
+          members.length > 1 ? 'פרטי הלקוחה עודכנו בכל הסדרה' : 'ההזמנה עודכנה',
+        );
+      }
       closeEdit();
       await fetchBookings();
     } catch (err) {
@@ -192,23 +306,81 @@ export default function AdminDashboard({ session, onLogout }) {
     }
   };
 
-  const handleCancelBooking = async (booking) => {
-    if (!window.confirm(`לבטל את ההזמנה של ${booking.full_name || 'הלקוחה'}?`)) return;
+  const handleCancelBooking = async (booking, { wholeSeries = false } = {}) => {
+    const members = wholeSeries ? findSeriesMembers(booking, bookings) : [booking];
+    const msg = wholeSeries
+      ? `לבטל את כל ${members.length} המועדים בסדרה של ${booking.full_name || 'הלקוחה'}?`
+      : `לבטל את המועד ${booking.selected_date || ''} של ${booking.full_name || 'הלקוחה'}?`;
+    if (!window.confirm(msg)) return;
     setError('');
     setNotice('');
 
     try {
+      const ids = members.map((m) => m.id);
       const { error: updateError } = await supabase
         .from('bookings')
         .update({ status: 'cancelled' })
-        .eq('id', booking.id);
+        .in('id', ids);
 
       if (updateError) throw updateError;
-      setNotice('ההזמנה בוטלה');
-      if (editForm.id === booking.id) closeEdit();
+      setNotice(wholeSeries ? 'כל מועדי הסדרה בוטלו' : 'המועד בוטל');
+      if (ids.includes(editForm.id)) closeEdit();
       await fetchBookings();
     } catch (err) {
       showError(mapBookingError(err) || 'ביטול ההזמנה נכשל');
+    }
+  };
+
+  const handleSaveOccurrenceDate = async (memberId, nextDate) => {
+    if (!nextDate || isSaving) return;
+    const member = bookings.find((b) => String(b.id) === String(memberId));
+    const normalized = String(nextDate).slice(0, 10);
+    if (!member || member.selected_date === normalized) return;
+
+    setIsSaving(true);
+    setNotice('');
+    setError('');
+
+    const slotCheck = assertOccurrenceSlotFree(
+      memberId,
+      normalized,
+      member.selected_shift || editForm.selected_shift,
+    );
+    if (!slotCheck.ok) {
+      showError(slotCheck.message);
+      // מחזירים את ה־input לערך מהשרת (controlled דרך member.selected_date)
+      setBookings((prev) => [...prev]);
+      setIsSaving(false);
+      return;
+    }
+
+    try {
+      const { data: updated, error: updateError } = await supabase
+        .from('bookings')
+        .update({ selected_date: normalized })
+        .eq('id', memberId)
+        .select('id, selected_date')
+        .maybeSingle();
+      if (updateError) throw updateError;
+      if (!updated?.id) {
+        throw new Error('התאריך לא עודכן. רענני ונסי שוב.');
+      }
+      if (updated.selected_date !== normalized) {
+        throw new Error(
+          'התאריך לא נשמר — המועד כנראה כבר תפוס. התאריך נשאר כמו שהיה.',
+        );
+      }
+      if (String(editForm.id) === String(memberId)) {
+        setEditForm((prev) => ({ ...prev, selected_date: normalized }));
+      }
+      setError('');
+      setNotice('תאריך המועד עודכן');
+      await fetchBookings();
+    } catch (err) {
+      showError(mapBookingError(err) || 'עדכון התאריך נכשל');
+      await fetchBookings();
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -266,8 +438,8 @@ export default function AdminDashboard({ session, onLogout }) {
           ))}
         </div>
 
-        {notice && <AlertBanner tone="success">{notice}</AlertBanner>}
-        {/* כשטופס העריכה פתוח — השגיאה מוצגת לידו בלבד, בלי כפילות */}
+        {notice && !error && <AlertBanner tone="success">{notice}</AlertBanner>}
+        {/* שגיאה תמיד למעלה — כדי שלא תיעלם אחרי רענון/סגירת טופס */}
         {error && !editForm.id && (
           <AlertBanner tone="error" testId="admin-error">{error}</AlertBanner>
         )}
@@ -296,11 +468,24 @@ export default function AdminDashboard({ session, onLogout }) {
                     </span>
                   </p>
                   <p className="text-[11px] text-[#8c746c]">
-                    מועד: {latestCreated.selected_date || '—'}
+                    {latestSeries && latestSeries.total > 1 ? (
+                      <>
+                        סדרה: {formatDateHe(latestSeries.start)} – {formatDateHe(latestSeries.end)}
+                        {' · '}
+                        {latestSeries.activeCount}/{latestSeries.total} מועדים
+                        {' · '}
+                        {latestSeries.shiftLabel}
+                      </>
+                    ) : (
+                      <>מועד: {formatDateHe(latestCreated.selected_date) || latestCreated.selected_date || '—'}</>
+                    )}
                     {latestCreated.created_at
                       ? ` · נקלטה: ${new Date(latestCreated.created_at).toLocaleString('he-IL')}`
                       : ''}
                   </p>
+                  {latestSeries?.label && latestSeries.total > 1 && (
+                    <p className="text-[11px] text-[#8c5e47]">{latestSeries.label}</p>
+                  )}
                 </div>
                 <button
                   type="button"
@@ -352,7 +537,7 @@ export default function AdminDashboard({ session, onLogout }) {
                 </select>
                 <button
                   type="button"
-                  onClick={fetchBookings}
+                  onClick={() => fetchBookings({ clearError: true })}
                   className="px-4 py-3 rounded-xl text-sm font-bold bg-[#8c5e47] text-white hover:bg-[#724a35] cursor-pointer"
                 >
                   רענון
@@ -401,67 +586,187 @@ export default function AdminDashboard({ session, onLogout }) {
                   </AlertBanner>
                 )}
 
+                {seriesInfo && seriesMembers.length > 1 && (
+                  <div
+                    data-testid="admin-series-panel"
+                    className="bg-white border border-[#e8dfd3] rounded-xl p-3 space-y-2"
+                  >
+                    <div className="text-right space-y-1">
+                      <p className="text-[11px] font-bold text-[#8c5e47]">סדרת מועדים</p>
+                      <p className="text-sm font-bold text-[#3b2a26]">
+                        {PLAN_LABELS[editForm.plan_id] || editForm.plan_id}
+                      </p>
+                      <p className="text-xs text-[#5c4a45] leading-relaxed">
+                        {seriesInfo.label}
+                      </p>
+                      <p className="text-[11px] text-[#8c746c]">
+                        התחלה {formatDateHe(seriesInfo.start)} · סיום {formatDateHe(seriesInfo.end)}
+                        {' · '}
+                        {seriesInfo.activeCount}/{seriesInfo.total} פעילים
+                        {' · '}
+                        משמרת {seriesInfo.shiftLabel}
+                      </p>
+                    </div>
+
+                    <ul className="max-h-52 overflow-y-auto divide-y divide-[#eee4d8] border border-[#eee4d8] rounded-lg">
+                      {seriesMembers.map((member) => {
+                        const isCurrent = member.id === editForm.id;
+                        return (
+                          <li
+                            key={member.id}
+                            className={`p-2.5 flex flex-col sm:flex-row sm:items-center gap-2 justify-between text-xs ${
+                              isCurrent ? 'bg-[#f5ebe0]' : 'bg-white'
+                            }`}
+                          >
+                            <div className="flex flex-wrap items-center gap-2 text-right">
+                              <span className="font-bold text-[#3b2a26]">
+                                {formatDateHe(member.selected_date) || member.selected_date}
+                              </span>
+                              <span className="text-[#8c746c]">
+                                {SHIFT_LABELS[member.selected_shift] || member.selected_shift}
+                              </span>
+                              <span
+                                className={`px-1.5 py-0.5 rounded-full font-semibold ${
+                                  member.status === 'paid'
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : member.status === 'cancelled'
+                                      ? 'bg-stone-200 text-stone-600'
+                                      : 'bg-amber-100 text-amber-800'
+                                }`}
+                              >
+                                {STATUS_LABELS[member.status] || member.status}
+                              </span>
+                              {Number(member.total_price) > 0 && (
+                                <span className="text-[#8c5e47] font-semibold">
+                                  {Number(member.total_price).toLocaleString()} ₪
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap gap-1.5 items-center">
+                              <input
+                                type="date"
+                                value={member.selected_date || ''}
+                                disabled={isSaving || member.status === 'cancelled'}
+                                onChange={(e) => {
+                                  const next = e.target.value;
+                                  if (next && next !== member.selected_date) {
+                                    handleSaveOccurrenceDate(member.id, next);
+                                  }
+                                }}
+                                className="p-1.5 border border-[#cbd5e1] rounded-lg text-[11px] bg-[#faf8f5] disabled:opacity-50"
+                                title="שינוי תאריך למועד זה"
+                              />
+                              {!isCurrent && (
+                                <button
+                                  type="button"
+                                  onClick={() => openEdit(member)}
+                                  className="px-2 py-1 rounded-lg border border-[#e8dfd3] font-bold hover:bg-[#f5ebe0] cursor-pointer"
+                                >
+                                  פתיחה
+                                </button>
+                              )}
+                              {member.status !== 'cancelled' && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleCancelBooking(member)}
+                                  className="px-2 py-1 rounded-lg border border-red-200 text-red-700 font-bold hover:bg-red-50 cursor-pointer"
+                                >
+                                  ביטול מועד
+                                </button>
+                              )}
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <input
-                    required
-                    value={editForm.full_name}
-                    onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
-                    placeholder="שם מלא"
-                    className="p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white"
-                  />
-                  <input
-                    required
-                    value={editForm.phone}
-                    onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                    placeholder="טלפון"
-                    className="p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white"
-                  />
-                  <input
-                    value={editForm.profession}
-                    onChange={(e) => setEditForm({ ...editForm, profession: e.target.value })}
-                    placeholder="תחום טיפול"
-                    className="p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white"
-                  />
-                  <input
-                    value={editForm.plan_id}
-                    onChange={(e) => setEditForm({ ...editForm, plan_id: e.target.value })}
-                    placeholder="מזהה מסלול"
-                    className="p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white"
-                  />
-                  <input
-                    type="date"
-                    value={editForm.selected_date}
-                    onChange={(e) => setEditForm({ ...editForm, selected_date: e.target.value })}
-                    className="p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white"
-                  />
-                  <select
-                    value={editForm.selected_shift}
-                    onChange={(e) => setEditForm({ ...editForm, selected_shift: e.target.value })}
-                    className="p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white"
-                  >
-                    <option value="morning">בוקר</option>
-                    <option value="afternoon">אחה״צ</option>
-                    <option value="full-day">יום מלא</option>
-                  </select>
-                  <input
-                    type="number"
-                    value={editForm.total_price}
-                    onChange={(e) => setEditForm({ ...editForm, total_price: e.target.value })}
-                    placeholder="סכום"
-                    className="p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white"
-                  />
-                  <select
-                    value={editForm.status}
-                    onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                    className="p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white"
-                  >
-                    <option value="reserved">שריון זמני</option>
-                    <option value="paid">שולם</option>
-                    <option value="cancelled">בוטל</option>
-                  </select>
+                  <label className="block text-right space-y-1">
+                    <span className="text-[11px] font-bold text-[#8c746c]">שם מלא</span>
+                    <input
+                      required
+                      value={editForm.full_name}
+                      onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
+                      className="w-full p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white"
+                    />
+                  </label>
+                  <label className="block text-right space-y-1">
+                    <span className="text-[11px] font-bold text-[#8c746c]">טלפון</span>
+                    <input
+                      required
+                      inputMode="tel"
+                      value={editForm.phone}
+                      onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                      placeholder="0501234567"
+                      className={`w-full p-3 border rounded-xl text-sm bg-white ${
+                        error?.includes('טלפון') ? 'border-red-400 bg-red-50/40' : 'border-[#cbd5e1]'
+                      }`}
+                    />
+                  </label>
+                  <label className="block text-right space-y-1">
+                    <span className="text-[11px] font-bold text-[#8c746c]">תחום טיפול</span>
+                    <input
+                      value={editForm.profession}
+                      onChange={(e) => setEditForm({ ...editForm, profession: e.target.value })}
+                      className="w-full p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white"
+                    />
+                  </label>
+                  <label className="block text-right space-y-1">
+                    <span className="text-[11px] font-bold text-[#8c746c]">מסלול</span>
+                    <input
+                      value={PLAN_LABELS[editForm.plan_id] || editForm.plan_id}
+                      readOnly
+                      title={editForm.plan_id}
+                      className="w-full p-3 border border-[#cbd5e1] rounded-xl text-sm bg-[#f5f1ea] text-[#5c4a45]"
+                    />
+                  </label>
+                  <label className="block text-right space-y-1">
+                    <span className="text-[11px] font-bold text-[#8c746c]">תאריך המועד</span>
+                    <input
+                      type="date"
+                      value={editForm.selected_date}
+                      onChange={(e) => setEditForm({ ...editForm, selected_date: e.target.value })}
+                      className="w-full p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white"
+                    />
+                  </label>
+                  <label className="block text-right space-y-1">
+                    <span className="text-[11px] font-bold text-[#8c746c]">משמרת</span>
+                    <select
+                      value={editForm.selected_shift}
+                      onChange={(e) => setEditForm({ ...editForm, selected_shift: e.target.value })}
+                      className="w-full p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white"
+                    >
+                      <option value="morning">בוקר</option>
+                      <option value="afternoon">אחה״צ</option>
+                      <option value="full-day">יום מלא</option>
+                    </select>
+                  </label>
+                  <label className="block text-right space-y-1">
+                    <span className="text-[11px] font-bold text-[#8c746c]">סכום (₪)</span>
+                    <input
+                      type="number"
+                      value={editForm.total_price}
+                      onChange={(e) => setEditForm({ ...editForm, total_price: e.target.value })}
+                      className="w-full p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white"
+                    />
+                  </label>
+                  <label className="block text-right space-y-1">
+                    <span className="text-[11px] font-bold text-[#8c746c]">סטטוס</span>
+                    <select
+                      value={editForm.status}
+                      onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                      className="w-full p-3 border border-[#cbd5e1] rounded-xl text-sm bg-white"
+                    >
+                      <option value="reserved">שריון זמני</option>
+                      <option value="paid">שולם</option>
+                      <option value="cancelled">בוטל</option>
+                    </select>
+                  </label>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <button
                     type="submit"
                     disabled={isSaving}
@@ -474,8 +779,17 @@ export default function AdminDashboard({ session, onLogout }) {
                     onClick={() => handleCancelBooking(editForm)}
                     className="bg-white border border-red-200 text-red-700 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-red-50 cursor-pointer"
                   >
-                    ביטול הזמנה
+                    ביטול מועד זה
                   </button>
+                  {seriesMembers.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => handleCancelBooking(editForm, { wholeSeries: true })}
+                      className="bg-white border border-red-300 text-red-800 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-red-50 cursor-pointer"
+                    >
+                      ביטול כל הסדרה
+                    </button>
+                  )}
                 </div>
               </form>
             )}
@@ -491,60 +805,129 @@ export default function AdminDashboard({ session, onLogout }) {
               />
             ) : (
               <div className="bg-[#faf6ef] border border-[#e8dfd3] rounded-2xl overflow-hidden">
-                {filteredBookings.length === 0 ? (
+                {listRows.length === 0 ? (
                   <p className="p-6 text-sm text-[#8c746c]">אין הזמנות להצגה</p>
                 ) : (
                   <ul className="divide-y divide-[#e8dfd3]">
-                    {filteredBookings.map((booking) => (
-                      <li key={booking.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
-                        <div className="space-y-1 text-right">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="font-bold text-[#3b2a26]">{booking.full_name || 'ללא שם'}</span>
-                            <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${
-                              booking.status === 'paid'
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : booking.status === 'cancelled'
-                                  ? 'bg-stone-200 text-stone-600'
-                                  : 'bg-amber-100 text-amber-800'
-                            }`}>
-                              {STATUS_LABELS[booking.status] || booking.status}
-                            </span>
-                          </div>
-                          <p className="text-xs text-[#8c746c]">
-                            {booking.phone || 'ללא טלפון'}
-                            {booking.profession ? ` · ${booking.profession}` : ''}
-                          </p>
-                          <p className="text-xs text-[#5c4a45]">
-                            {booking.selected_date || 'ללא תאריך'}
-                            {' · '}
-                            {SHIFT_LABELS[booking.selected_shift] || booking.selected_shift || 'ללא משמרת'}
-                            {' · '}
-                            {booking.plan_id || 'ללא מסלול'}
-                            {' · '}
-                            {Number(booking.total_price || 0).toLocaleString()} ₪
-                          </p>
-                        </div>
+                    {listRows.map((row) => {
+                      const booking = row.primary;
+                      const summary = row.summary;
+                      const expanded = expandedSeries.has(row.key);
 
-                        <div className="flex gap-2 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => openEdit(booking)}
-                            className="px-3 py-2 rounded-xl text-xs font-bold bg-white border border-[#e8dfd3] hover:bg-[#f5ebe0] cursor-pointer"
-                          >
-                            שינוי
-                          </button>
-                          {booking.status !== 'cancelled' && (
-                            <button
-                              type="button"
-                              onClick={() => handleCancelBooking(booking)}
-                              className="px-3 py-2 rounded-xl text-xs font-bold bg-white border border-red-200 text-red-700 hover:bg-red-50 cursor-pointer"
-                            >
-                              ביטול
-                            </button>
+                      return (
+                        <li key={row.key} className="p-4 space-y-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+                            <div className="space-y-1 text-right">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-bold text-[#3b2a26]">{booking.full_name || 'ללא שם'}</span>
+                                <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${
+                                  booking.status === 'paid'
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : booking.status === 'cancelled'
+                                      ? 'bg-stone-200 text-stone-600'
+                                      : 'bg-amber-100 text-amber-800'
+                                }`}>
+                                  {STATUS_LABELS[booking.status] || booking.status}
+                                </span>
+                                {row.isSeries && (
+                                  <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-[#f5ebe0] text-[#8c5e47]">
+                                    סדרה · {summary.activeCount}/{summary.total} מועדים
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-[#8c746c]">
+                                {booking.phone || 'ללא טלפון'}
+                                {booking.profession ? ` · ${booking.profession}` : ''}
+                              </p>
+                              {row.isSeries ? (
+                                <>
+                                  <p className="text-xs text-[#5c4a45]">
+                                    {formatDateHe(summary.start)} – {formatDateHe(summary.end)}
+                                    {' · '}
+                                    {summary.shiftLabel}
+                                    {' · '}
+                                    {summary.planLabel}
+                                    {' · '}
+                                    {Number(summary.totalPrice || 0).toLocaleString()} ₪
+                                  </p>
+                                  {summary.label && (
+                                    <p className="text-[11px] text-[#8c5e47]">{summary.label}</p>
+                                  )}
+                                </>
+                              ) : (
+                                <p className="text-xs text-[#5c4a45]">
+                                  {formatDateHe(booking.selected_date) || booking.selected_date || 'ללא תאריך'}
+                                  {' · '}
+                                  {SHIFT_LABELS[booking.selected_shift] || booking.selected_shift || 'ללא משמרת'}
+                                  {' · '}
+                                  {PLAN_LABELS[booking.plan_id] || booking.plan_id || 'ללא מסלול'}
+                                  {' · '}
+                                  {Number(booking.total_price || 0).toLocaleString()} ₪
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="flex flex-wrap gap-2 shrink-0">
+                              {row.isSeries && (
+                                <button
+                                  type="button"
+                                  onClick={() => toggleSeriesExpanded(row.key)}
+                                  className="px-3 py-2 rounded-xl text-xs font-bold bg-white border border-[#e8dfd3] hover:bg-[#f5ebe0] cursor-pointer"
+                                >
+                                  {expanded ? 'הסתרת מועדים' : 'כל המועדים'}
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => openEdit(booking)}
+                                className="px-3 py-2 rounded-xl text-xs font-bold bg-white border border-[#e8dfd3] hover:bg-[#f5ebe0] cursor-pointer"
+                              >
+                                שינוי
+                              </button>
+                              {booking.status !== 'cancelled' && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleCancelBooking(booking, { wholeSeries: row.isSeries })
+                                  }
+                                  className="px-3 py-2 rounded-xl text-xs font-bold bg-white border border-red-200 text-red-700 hover:bg-red-50 cursor-pointer"
+                                >
+                                  {row.isSeries ? 'ביטול סדרה' : 'ביטול'}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {row.isSeries && expanded && (
+                            <ul className="border border-[#eee4d8] rounded-xl divide-y divide-[#eee4d8] bg-white max-h-64 overflow-y-auto">
+                              {row.members.map((member) => (
+                                <li
+                                  key={member.id}
+                                  className="px-3 py-2 flex flex-wrap items-center justify-between gap-2 text-xs"
+                                >
+                                  <span className="text-right">
+                                    <span className="font-bold text-[#3b2a26]">
+                                      {formatDateHe(member.selected_date) || member.selected_date}
+                                    </span>
+                                    {' · '}
+                                    {SHIFT_LABELS[member.selected_shift] || member.selected_shift}
+                                    {' · '}
+                                    {STATUS_LABELS[member.status] || member.status}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => openEdit(member)}
+                                    className="px-2 py-1 rounded-lg border border-[#e8dfd3] font-bold hover:bg-[#f5ebe0] cursor-pointer"
+                                  >
+                                    עריכת מועד
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
                           )}
-                        </div>
-                      </li>
-                    ))}
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </div>

@@ -30,7 +30,7 @@ describe('bookingHoldsSlot', () => {
     expect(bookingHoldsSlot({ status: 'cancelled', created_at: now.toISOString() }, now)).toBe(false);
   });
 
-  it('holds only recent reserved bookings', () => {
+  it('holds only recent reserved bookings for single slots', () => {
     expect(
       bookingHoldsSlot(
         { status: 'reserved', created_at: new Date(now.getTime() - 5 * 60 * 1000).toISOString() },
@@ -44,6 +44,13 @@ describe('bookingHoldsSlot', () => {
         now,
       ),
     ).toBe(false);
+  });
+
+  it('holds reserved series / monthly / session even after hold window', () => {
+    const old = new Date(now.getTime() - HOLD_WINDOW_MS - 1000).toISOString();
+    expect(bookingHoldsSlot({ status: 'reserved', series_id: 's1', created_at: old }, now)).toBe(true);
+    expect(bookingHoldsSlot({ status: 'reserved', plan_id: 'monthly', created_at: old }, now)).toBe(true);
+    expect(bookingHoldsSlot({ status: 'reserved', plan_id: 'session', created_at: old }, now)).toBe(true);
   });
 });
 

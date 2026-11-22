@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { enterBookingFromLanding } from './helpers/publicFlow.js';
 
 function nextWeekdayIso(offsetDays = 2) {
   const d = new Date();
@@ -64,7 +65,7 @@ test.describe('Regression guards', () => {
       });
     });
 
-    await page.goto('/');
+    await enterBookingFromLanding(page);
     await page.getByRole('heading', { name: 'השכרה יומית חד-פעמית' }).click();
 
     const dateInput = page.locator('input[type="date"]');
@@ -94,7 +95,7 @@ test.describe('Regression guards', () => {
   });
 
   test('back navigation from details does not leave ghost paid state in UI', async ({ page }) => {
-    await page.goto('/');
+    await enterBookingFromLanding(page);
     await page.getByRole('heading', { name: 'השכרה יומית חד-פעמית' }).click();
     const dateInput = page.locator('input[type="date"]');
     await dateInput.fill(nextWeekdayIso(3));

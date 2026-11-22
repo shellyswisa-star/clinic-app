@@ -4,8 +4,10 @@ export const CLINIC_INFO = {
   name: 'שורשים',
   tagline: 'מרחב טיפולי שקט במושב אביאל',
   address: 'מושב אביאל, אלונה',
-  hours: "א' - ה': 08:00 - 20:00",
+  hours: "א'–ה': 08:00–20:00",
   imageUrl: '/clinic-space.jpg',
+  /** מספר וואטסאפ בינלאומי בלי + ומקפים, למשל 972501234567. או VITE_WHATSAPP_PHONE ב־.env */
+  whatsappPhone: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_WHATSAPP_PHONE) || '',
 };
 
 export const DAY_NAMES = ['יום ראשון', 'יום שני', 'יום שלישי', 'יום רביעי', 'יום חמישי'];

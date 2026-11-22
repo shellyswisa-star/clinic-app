@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { enterBookingFromLanding } from './helpers/publicFlow.js';
 
 function nextWeekdayIso(offsetDays = 2) {
   const d = new Date();
@@ -48,7 +49,7 @@ async function mockRestEmpty(page) {
 
 test.describe('All rental plans — schedule & pricing', () => {
   test('hourly card shows 60/h and 360 shift total, with 08:00 shifts', async ({ page }) => {
-    await page.goto('/');
+    await enterBookingFromLanding(page);
     await expect(page.getByText('60 ₪ / שעה')).toBeVisible();
     await expect(page.getByText(/משמרת 6 ש׳ = 360/)).toBeVisible();
 
@@ -65,7 +66,7 @@ test.describe('All rental plans — schedule & pricing', () => {
 
   test('session flow reaches details with weekly dates summary', async ({ page }) => {
     await mockRestEmpty(page);
-    await page.goto('/');
+    await enterBookingFromLanding(page);
     await page.getByRole('heading', { name: /מפגש שבועי/ }).click();
     await page.locator('input[type="date"]').fill(nextWeekdayIso(3));
     await page.getByRole('button', { name: /08:00 - 14:00/ }).click();
@@ -74,7 +75,7 @@ test.describe('All rental plans — schedule & pricing', () => {
   });
 
   test('monthly flow: start date + duration + calendar preview', async ({ page }) => {
-    await page.goto('/');
+    await enterBookingFromLanding(page);
     await page.getByText('השכרה חודשית קבועה').click();
     await page.getByRole('button', { name: /3 ימים/ }).click();
     await page.getByRole('button', { name: /08:00 - 14:00/ }).click();
@@ -111,7 +112,7 @@ test.describe('All rental plans — schedule & pricing', () => {
   });
 
   test('daily full-day hours show 08:00-20:00', async ({ page }) => {
-    await page.goto('/');
+    await enterBookingFromLanding(page);
     await page.getByRole('heading', { name: 'השכרה יומית חד-פעמית' }).click();
     await expect(page.getByText(/08:00 - 20:00|08:00–20:00/)).toBeVisible();
   });

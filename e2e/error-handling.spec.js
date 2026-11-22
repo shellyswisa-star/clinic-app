@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { hasAdminCredentials, loginAsAdmin } from './helpers/adminAuth.js';
+import { enterBookingFromLanding } from './helpers/publicFlow.js';
 
 function nextWeekdayIso(offsetDays = 2) {
   const d = new Date();
@@ -81,7 +82,7 @@ test.describe('Error handling edge cases', () => {
       });
     });
 
-    await page.goto('/');
+    await enterBookingFromLanding(page);
     await page.getByRole('heading', { name: 'השכרה יומית חד-פעמית' }).click();
     await page.locator('input[type="date"]').fill(nextWeekdayIso(2));
     await page.getByRole('button', { name: /המשך לפרטים/ }).click();
@@ -119,7 +120,7 @@ test.describe('Error handling edge cases', () => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
     });
 
-    await page.goto('/');
+    await enterBookingFromLanding(page);
     await page.getByRole('heading', { name: 'השכרה יומית חד-פעמית' }).click();
     await page.locator('input[type="date"]').fill(nextWeekdayIso(3));
     await page.getByRole('button', { name: /המשך לפרטים/ }).click();

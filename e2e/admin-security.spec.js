@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { enterBookingFromLanding } from './helpers/publicFlow.js';
 
 test.describe('Admin security & access control', () => {
   test('admin route requires login (no guest dashboard)', async ({ page }) => {
@@ -21,6 +22,8 @@ test.describe('Admin security & access control', () => {
 
   test('public booking stays available without auth', async ({ page }) => {
     await page.goto('/');
+    await expect(page.getByTestId('landing-page')).toBeVisible();
+    await enterBookingFromLanding(page);
     await expect(page.getByText('בחירת מסלול השכרה')).toBeVisible();
   });
 });

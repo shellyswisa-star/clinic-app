@@ -14,6 +14,7 @@ import {
   validateBookingForm,
 } from './lib/bookingRules';
 import { createBookingSafe, mapBookingError } from './lib/bookingApi';
+import { buildSeriesLabel, newSeriesId } from './lib/bookingSeries';
 import {
   MONTHLY_DURATION_OPTIONS,
   PARTIAL_SHIFTS,
@@ -24,6 +25,7 @@ import {
   getSessionDates as buildSessionDates,
 } from './lib/schedule';
 import AlertBanner from './components/AlertBanner.jsx';
+import LandingPage from './components/LandingPage.jsx';
 
 export default function ClinicBookingApp() {
   const [selectedPlan, setSelectedPlan] = useState(null);
@@ -37,7 +39,8 @@ export default function ClinicBookingApp() {
   const [paymentMethod, setPaymentMethod] = useState('credit');
   const [currentBookingId, setCurrentBookingId] = useState(null);
   const [currentBookingIds, setCurrentBookingIds] = useState([]);
-  const [step, setStep] = useState(1);
+  // 0 = נחיתה, 1 = מסלולים, 2 = מועד, 3 = פרטים, 4 = תשלום, 5 = הצלחה
+  const [step, setStep] = useState(0);
   const [formData, setFormData] = useState({ name: '', phone: '', profession: '', cardNumber: '', expiry: '', cvv: '' });
   
   const [formErrors, setFormErrors] = useState({});
@@ -208,6 +211,19 @@ export default function ClinicBookingApp() {
     try {
       const totalPrice = calculateTotalPrice();
       const createdIds = [];
+      const seriesId = datesToBook.length > 1 ? newSeriesId() : null;
+      const seriesLabel =
+        datesToBook.length > 1
+          ? buildSeriesLabel({
+              planId: selectedPlan.id,
+              weekdays: selectedPlan.id === 'monthly' ? selectedDays : [],
+              shift,
+              startDateStr:
+                selectedPlan.id === 'monthly' ? monthlyStartDate : datesToBook[0],
+              months: selectedPlan.id === 'monthly' ? monthlyMonths : undefined,
+              dates: datesToBook,
+            })
+          : null;
 
       for (let i = 0; i < datesToBook.length; i += 1) {
         const { data: bookingData, error: bookingError } = await createBookingSafe({
@@ -220,6 +236,8 @@ export default function ClinicBookingApp() {
           // מחיר מלא רק בהזמנה הראשונה — השאר מחזיקות משבצת
           total_price: i === 0 ? totalPrice : 0,
           status: 'reserved',
+          series_id: seriesId,
+          series_label: seriesLabel,
         });
 
         if (bookingError) {
@@ -332,6 +350,10 @@ export default function ClinicBookingApp() {
 
   const todayStr = new Date().toISOString().split('T')[0];
 
+  if (step === 0) {
+    return <LandingPage onStartBooking={() => setStep(1)} />;
+  }
+
   return (
     <div dir="rtl" className="min-h-screen bg-[#fcf9f2] text-[#4a3e3d] font-sans py-8 px-4 flex justify-center items-center">
       <div className="w-full max-w-lg bg-[#faf6ef] rounded-3xl shadow-xl border border-[#e8dfd3] overflow-hidden">
@@ -348,7 +370,7 @@ export default function ClinicBookingApp() {
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#2a1b18]/80 via-[#2a1b18]/20 to-transparent flex flex-col justify-end p-6 text-white">
             <span className="text-[11px] font-semibold bg-[#8c5e47] text-[#fbf8f3] px-3 py-1 rounded-full w-fit mb-1.5 shadow-sm">
-              🏡 {CLINIC_INFO.address}
+              {CLINIC_INFO.address}
             </span>
             <h1 className="text-3xl font-bold title-handwritten tracking-wider text-[#faf4eb]">{CLINIC_INFO.name}</h1>
             <p className="text-xs text-[#ebded5] font-light mt-0.5">{CLINIC_INFO.tagline}</p>
@@ -360,6 +382,13 @@ export default function ClinicBookingApp() {
           {/* שלב 1: בחירת מסלול */}
           {step === 1 && (
             <div className="space-y-4">
+              <button
+                type="button"
+                onClick={() => setStep(0)}
+                className="text-xs font-semibold text-[#8c5e47] hover:underline cursor-pointer"
+              >
+                ← חזרה לעמוד הנחיתה
+              </button>
               <div className="text-right">
                 <h2 className="text-xl font-bold text-[#5c4a45] title-handwritten tracking-wide">בחירת מסלול השכרה</h2>
                 <p className="text-xs text-[#8c746c]">בחרי את המסלול המתאים ביותר לאופי הטיפולים שלך</p>

@@ -114,7 +114,10 @@ begin
 
   perform public.lock_booking_slot(new.selected_date, new.selected_shift);
 
-  if public.booking_slot_is_blocked(new.selected_date, new.selected_shift) then
+  -- חסימות יומן חלות על הזמנות מהאתר (anon).
+  -- מנהלת מחוברת יכולה לערוך/להזיז מועדים גם על יום חסום.
+  if auth.uid() is null
+     and public.booking_slot_is_blocked(new.selected_date, new.selected_shift) then
     -- אל תשתמשי ב-USING message יחד עם מחרוזת אחרי RAISE — Postgres זורק
     -- "RAISE option already specified: MESSAGE"
     raise exception using

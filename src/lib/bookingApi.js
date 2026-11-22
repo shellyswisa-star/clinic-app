@@ -23,7 +23,6 @@ function errorBlob(error) {
 export function mapBookingError(error) {
   const raw = errorBlob(error);
 
-  // באג SQL ישן: RAISE עם MESSAGE פעמיים — לטפל עד שמריצים את ה-SQL המעודכן
   if (/raise option already specified/.test(raw)) {
     return 'לא ניתן לשמור את המשבצת כרגע. נסי תאריך או משמרת אחרת, או רענני וראי אם המשבצת פנויה.';
   }
@@ -55,7 +54,6 @@ export function mapBookingError(error) {
     return 'נראה שהפעולה כבר בוצעה. רענני את הרשימה לפני ניסיון נוסף.';
   }
 
-  // לא להציג ג׳רגון טכני גולמי למשתמשת
   const msg = (error?.message || '').trim();
   if (!msg || /^(error|exception|p0001|xx000)\b/i.test(msg) || /raise option|sqlstate|postgres/i.test(msg)) {
     return 'משהו השתבש בשמירה. נסי שוב בעוד רגע.';
@@ -97,7 +95,7 @@ export function mapAdminError(error, fallback = 'הפעולה נכשלה') {
 
 /**
  * יצירת הזמנה עם הגנת דאבל-בוקינג ב-DB (RPC + נעילה).
- * אם ה-RPC עדיין לא הותקן בסופבייס — נופל ל-insert רגיל.
+ * אם ה-RPC עדיין לא הותקן / לא תומך ב-series — נופל ל-insert / RPC ישן.
  */
 export async function createBookingSafe(payload) {
   const {
@@ -109,9 +107,25 @@ export async function createBookingSafe(payload) {
     selected_shift,
     total_price,
     status = 'reserved',
+    series_id = null,
+    series_label = null,
   } = payload;
 
-  const { data, error } = await supabase.rpc('create_booking_safe', {
+  const row = {
+    plan_id,
+    full_name,
+    phone,
+    profession,
+    selected_date,
+    selected_shift,
+    total_price,
+    status,
+    ...(series_id ? { series_id } : {}),
+    ...(series_label ? { series_label } : {}),
+  };
+
+  // ניסיון 1: RPC עם סדרה
+  const withSeries = await supabase.rpc('create_booking_safe', {
     p_plan_id: plan_id,
     p_full_name: full_name,
     p_phone: phone,
@@ -120,37 +134,53 @@ export async function createBookingSafe(payload) {
     p_selected_shift: selected_shift,
     p_total_price: total_price,
     p_status: status,
+    p_series_id: series_id,
+    p_series_label: series_label,
   });
 
-  if (!error) {
-    return { data, error: null };
+  if (!withSeries.error) {
+    return { data: withSeries.data, error: null };
   }
 
-  // אם הפונקציה לא קיימת עדיין — fallback זמני
-  const missingFn =
-    error.code === 'PGRST202' ||
-    /could not find the function|schema cache/i.test(error.message || '');
+  const missingOrWrongArity =
+    withSeries.error.code === 'PGRST202' ||
+    /could not find the function|schema cache|function.*does not exist|could not choose/i.test(
+      withSeries.error.message || '',
+    );
 
-  if (!missingFn) {
-    return { data: null, error };
+  // ניסיון 2: RPC ישן בלי סדרה + עדכון עמודות סדרה אם קיימות
+  if (missingOrWrongArity) {
+    const legacy = await supabase.rpc('create_booking_safe', {
+      p_plan_id: plan_id,
+      p_full_name: full_name,
+      p_phone: phone,
+      p_profession: profession || null,
+      p_selected_date: selected_date,
+      p_selected_shift: selected_shift,
+      p_total_price: total_price,
+      p_status: status,
+    });
+
+    if (!legacy.error) {
+      if (series_id && legacy.data?.id) {
+        await supabase
+          .from('bookings')
+          .update({ series_id, series_label })
+          .eq('id', legacy.data.id);
+      }
+      return { data: legacy.data, error: null };
+    }
+
+    if (
+      legacy.error.code === 'PGRST202' ||
+      /could not find the function|schema cache/i.test(legacy.error.message || '')
+    ) {
+      const insertRes = await supabase.from('bookings').insert([row]).select().single();
+      return { data: insertRes.data, error: insertRes.error };
+    }
+
+    return { data: null, error: legacy.error };
   }
 
-  const insertRes = await supabase
-    .from('bookings')
-    .insert([
-      {
-        plan_id,
-        full_name,
-        phone,
-        profession,
-        selected_date,
-        selected_shift,
-        total_price,
-        status,
-      },
-    ])
-    .select()
-    .single();
-
-  return { data: insertRes.data, error: insertRes.error };
+  return { data: null, error: withSeries.error };
 }

@@ -7,12 +7,15 @@ export function shiftsOverlap(a, b) {
   return a === b || a === 'full-day' || b === 'full-day';
 }
 
-/** האם הזמנה קיימת עדיין חוסמת משמרת (שולם / שריון טרי) */
+/** האם הזמנה קיימת עדיין חוסמת משמרת (שולם / סדרה / שריון טרי) */
 export function bookingHoldsSlot(booking, now = new Date()) {
   if (!booking) return false;
-  if (booking.status === 'paid') return true;
   if (booking.status === 'cancelled') return false;
+  if (booking.status === 'paid') return true;
   if (booking.status !== 'reserved') return false;
+  // סדרה שבועית/חודשית תופסת את כל המועדים עד ביטול — לא רק 10 דקות
+  if (booking.series_id) return true;
+  if (booking.plan_id === 'session' || booking.plan_id === 'monthly') return true;
   if (!booking.created_at) return false;
   return now.getTime() - new Date(booking.created_at).getTime() < HOLD_WINDOW_MS;
 }
@@ -30,8 +33,9 @@ export function isShiftTaken({
 }) {
   if (!dateStr || !shiftStr) return false;
 
+  const wantDate = String(dateStr).slice(0, 10);
   const takenByBooking = existingBookings.some((booking) => {
-    if (booking.selected_date !== dateStr) return false;
+    if (String(booking.selected_date || '').slice(0, 10) !== wantDate) return false;
     if (!shiftsOverlap(booking.selected_shift, shiftStr)) return false;
     return bookingHoldsSlot(booking, now);
   });

@@ -33,20 +33,26 @@ describeAdmin('Admin dashboard (authenticated)', () => {
 
   test('closes edit form when switching calendar/list', async ({ page }) => {
     await loginAsAdmin(page);
-    await page.getByRole('button', { name: 'רשימה' }).click();
 
-    const editBtn = page.getByRole('button', { name: 'שינוי' }).first();
-    if ((await editBtn.count()) === 0) {
-      test.skip(true, 'No bookings to edit');
-      return;
-    }
-    await editBtn.click();
+    // נפתח מעריכה מהפס «הזמנה אחרונה» — יציב יותר מרשימה (סדרות מקובצות / טעינה)
+    const latestOpen = page.getByTestId('admin-latest-booking').getByRole('button', {
+      name: 'פתיחה לעריכה',
+    });
+    await expect(latestOpen).toBeVisible({ timeout: 15_000 });
+    await latestOpen.click();
+    await expect(page.getByRole('heading', { name: 'עריכת הזמנה' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'רשימה' }).click();
+    await expect(page.getByRole('heading', { name: 'עריכת הזמנה' })).toHaveCount(0);
+
+    // פתיחה שוב מהרשימה אחרי שהטעינה הסתיימה
+    await expect(page.getByText('טוענת הזמנות...')).toHaveCount(0, { timeout: 15_000 });
+    const listEdit = page.getByRole('button', { name: 'שינוי' }).first();
+    await expect(listEdit).toBeVisible({ timeout: 15_000 });
+    await listEdit.click();
     await expect(page.getByRole('heading', { name: 'עריכת הזמנה' })).toBeVisible();
 
     await page.getByRole('button', { name: 'יומן' }).click();
-    await expect(page.getByRole('heading', { name: 'עריכת הזמנה' })).toHaveCount(0);
-
-    await page.getByRole('button', { name: 'רשימה' }).click();
     await expect(page.getByRole('heading', { name: 'עריכת הזמנה' })).toHaveCount(0);
   });
 
