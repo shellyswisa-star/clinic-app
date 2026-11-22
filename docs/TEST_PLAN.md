@@ -7,7 +7,8 @@
 | שכבה | כלי | מתי רץ | מה בודקים |
 |------|-----|--------|-----------|
 | Unit / Regression logic | Vitest | כל PR + push | מחירים, חסימות, דאבל-בוקינג, ולידציה, מניעת שמירה כפולה |
-| E2E UI | Playwright | כל PR אחרי unit | מסלולי הזמנה, אדמין, אבטחת גישה, כפתור שמירה ננעל |
+| E2E UI | Playwright | כל PR אחרי unit | מסלולי הזמנה, אבמין, אבטחת גישה, שריון בודד |
+| E2E Admin (auth) | Playwright | כשיש `ADMIN_EMAIL`/`ADMIN_PASSWORD` | login, יומן, רשימה, מחירים, חסימות, logout |
 | Lint | ESLint | כל PR | איכות קוד בסיסית |
 | CI | GitHub Actions `.github/workflows/ci.yml` | push/PR ל-main | כל הנ״ל |
 
@@ -16,7 +17,7 @@
 ```bash
 npm run test:unit      # לוגיקה + רגרסיה
 npm run build && npm run test:e2e   # E2E מול preview
-npm run test           # unit ואז e2e (דורש build לפני e2e אם אין server)
+ADMIN_EMAIL='you@example.com' ADMIN_PASSWORD='***' npm run test:e2e  # כולל דשבורד מנהלת
 npm run test:ci        # כמו ב-CI
 ```
 
@@ -27,6 +28,8 @@ npm run test:ci        # כמו ב-CI
 - [x] כניסה עם סיסמה שגויה נשארת במסך login
 - [x] אתר הזמנות ציבורי בלי auth
 - [x] אין `service_role` ב-HTML
+- [x] E2E מנהלת: login אמיתי → דשבורד/יומן (כשיש secrets)
+- [x] E2E מנהלת: logout חוזר למסך כניסה
 - [ ] **ידני / עתידי:** בדיקת RLS בסופבייס (anon לא מוחק paid; authenticated מנהלת בלבד)
 - [ ] **עתידי:** משתמש authenticated שאינו המנהלת לא מקבל הרשאות יתר (אם יתווספו roles)
 
@@ -36,6 +39,8 @@ npm run test:ci        # כמו ב-CI
 - [x] מסלול יומי → פרטים → ולידציית שם/טלפון
 - [x] מסלול חודשי מציג 3/4/5 ימים עם מחירים נכונים
 - [x] ניווט חזרה מפרטים לא משאיר מסך תשלום
+- [x] E2E מנהלת: מעבר יומן ↔ רשימה
+- [x] E2E מנהלת: טאבי מחירים + חסימת משמרות
 
 ### 3) משאבים / רקע / תצוגה
 - [x] תמונת קליניקה מוצגת; גם בכשל העמוד נשאר שמיש
@@ -68,6 +73,7 @@ npm run test:ci        # כמו ב-CI
 - `src/lib/bookingRules.test.js`
 - `e2e/public-booking.spec.js`
 - `e2e/admin-security.spec.js`
+- `e2e/admin-dashboard.spec.js` (+ `e2e/helpers/adminAuth.js`)
 - `e2e/regression-guards.spec.js`
 
 ## Secrets ל-CI (מומלץ)
@@ -75,12 +81,15 @@ npm run test:ci        # כמו ב-CI
 ב-GitHub → Settings → Secrets:
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
+- `ADMIN_EMAIL` — משתמש מנהלת ב-Supabase Auth
+- `ADMIN_PASSWORD`
 
-בלי secrets הבילד משתמש בערכי CI דמה (מספיק לרוב בדיקות ה-UI).
+בלי `VITE_*` הבילד משתמש בערכי CI דמה (מספיק לרוב בדיקות ה-UI).  
+בלי `ADMIN_*` בדיקות הדשבורד המחוברות **מדלגות** (`describe.skip`) וה-CI עדיין ירוק.
 
 ## מה עדיין לא אוטומטי (backlog)
 
-1. Login מנהלת אמיתי + יומן הזמנות E2E (דורש user test + סיסמה ב-secrets)
-2. בדיקת RLS end-to-end מול פרויקט Supabase ייעודי ל-CI
-3. Race condition: שני משתמשים משריינים במקביל (צריך API/DB lock)
-4. סליקה אמיתית + מניעת חיוב כפול ברמת ספק התשלום
+1. בדיקת RLS end-to-end מול פרויקט Supabase ייעודי ל-CI
+2. Race condition: שני משתמשים משריינים במקביל (צריך API/DB lock)
+3. סליקה אמיתית + מניעת חיוב כפול ברמת ספק התשלום
+4. E2E: ביטול/עריכת הזמנה ספציפית ביומן (דורש seed נתונים)
