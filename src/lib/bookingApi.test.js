@@ -9,8 +9,8 @@ import {
 
 describe('mapBookingError', () => {
   it('maps DB double-booking errors to Hebrew', () => {
-    expect(mapBookingError({ message: SLOT_ALREADY_BOOKED })).toMatch(/תפוסה/);
-    expect(mapBookingError({ message: `ERROR: ${SLOT_BLOCKED}` })).toMatch(/חסומה/);
+    expect(mapBookingError({ message: SLOT_ALREADY_BOOKED })).toMatch(/הזמנה פעילה|משמרת/);
+    expect(mapBookingError({ message: `ERROR: ${SLOT_BLOCKED}` })).toMatch(/חסום/);
     expect(mapBookingError({ message: 'invalid_shift' })).toMatch(/משמרת תקינה/);
   });
 
@@ -43,7 +43,7 @@ describe('mapAuthError', () => {
 
 describe('mapAdminError', () => {
   it('reuses booking mappings and custom fallbacks', () => {
-    expect(mapAdminError({ message: SLOT_ALREADY_BOOKED })).toMatch(/תפוסה/);
+    expect(mapAdminError({ message: SLOT_ALREADY_BOOKED })).toMatch(/הזמנה פעילה|משמרת/);
     expect(mapAdminError({}, 'טעינה נכשלה')).toBe('טעינה נכשלה');
   });
 });

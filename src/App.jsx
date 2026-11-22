@@ -145,7 +145,7 @@ export default function ClinicBookingApp() {
     if (!canStartSave({ isSaving })) return;
 
     if (isShiftTaken(selectedDate, selectedShift)) {
-      setActionError('המשבצת הזו כבר תפוסה. בחרי תאריך או משמרת אחרת.');
+      setActionError('יש כבר הזמנה במועד שבחרת. בחרי תאריך או משמרת אחרת.');
       return;
     }
 

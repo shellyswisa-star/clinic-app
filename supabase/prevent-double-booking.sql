@@ -104,11 +104,11 @@ begin
     return new;
   end if;
 
-  -- עדכון סטטוס בלבד (למשל reserved -> paid) בלי שינוי משבצת
+  -- עדכון בלי שינוי תאריך/משמרת (שם, טלפון, מחיר, סטטוס) — לא חוסמים מחדש.
+  -- אחרת שמירת עריכה רגילה נכשלת אם נוספה חסימה אחרי ההזמנה המקורית.
   if tg_op = 'UPDATE'
      and old.selected_date is not distinct from new.selected_date
-     and old.selected_shift is not distinct from new.selected_shift
-     and old.status is not distinct from new.status then
+     and old.selected_shift is not distinct from new.selected_shift then
     return new;
   end if;
 

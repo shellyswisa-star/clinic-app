@@ -124,10 +124,10 @@ export default function AdminDashboard({ session, onLogout }) {
   const showError = (message) => {
     setError(message);
     setTimeout(() => {
-      document.querySelector('[data-testid="admin-error"]')?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest',
-      });
+      const el =
+        document.querySelector('[data-testid="admin-edit-error"]') ||
+        document.querySelector('[data-testid="admin-error"]');
+      el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }, 30);
   };
 
@@ -245,7 +245,10 @@ export default function AdminDashboard({ session, onLogout }) {
         </div>
 
         {notice && <AlertBanner tone="success">{notice}</AlertBanner>}
-        {error && <AlertBanner tone="error" testId="admin-error">{error}</AlertBanner>}
+        {/* כשטופס העריכה פתוח — השגיאה מוצגת לידו בלבד, בלי כפילות */}
+        {error && !editForm.id && (
+          <AlertBanner tone="error" testId="admin-error">{error}</AlertBanner>
+        )}
 
         {tab === 'pricing' && (
           <AdminPricing onNotice={setNotice} onError={setError} />

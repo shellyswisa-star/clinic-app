@@ -93,7 +93,7 @@ test.describe('Error handling edge cases', () => {
 
     const alert = page.getByTestId('booking-action-error');
     await expect(alert).toBeVisible({ timeout: 15_000 });
-    await expect(alert).toContainText(/תפוסה/);
+    await expect(alert).toContainText(/תפוסה|הזמנה פעילה|משמרת/);
     await expect(page.getByText('תשלום מאובטח')).toHaveCount(0);
   });
 
@@ -192,7 +192,7 @@ describeAdmin('Admin error handling (authenticated)', () => {
     await expect(page.getByRole('heading', { name: 'עריכת הזמנה' })).toBeVisible();
 
     await page.getByRole('button', { name: 'שמירת שינויים' }).click();
-    await expect(page.getByTestId('admin-edit-error')).toContainText(/תפוסה/, {
+    await expect(page.getByTestId('admin-edit-error')).toContainText(/תפוסה|הזמנה פעילה|משמרת/, {
       timeout: 15_000,
     });
   });

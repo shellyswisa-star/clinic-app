@@ -28,10 +28,10 @@ export function mapBookingError(error) {
     return 'לא ניתן לשמור את המשבצת כרגע. נסי תאריך או משמרת אחרת, או רענני וראי אם המשבצת פנויה.';
   }
   if (raw.includes(SLOT_ALREADY_BOOKED) || raw.includes('already booked')) {
-    return 'המשבצת הזו כבר תפוסה. בחרי תאריך או משמרת אחרת.';
+    return 'יש כבר הזמנה פעילה באותו יום/משמרת. שניי תאריך או משמרת, או בטלי את ההזמנה החופפת.';
   }
   if (raw.includes(SLOT_BLOCKED)) {
-    return 'המשבצת הזו חסומה במערכת. בחרי מועד אחר.';
+    return 'המועד הזה חסום ביומן. שניי תאריך/משמרת, או הסירי את החסימה בלשונית «חסימת משמרות».';
   }
   if (raw.includes('invalid_shift')) {
     return 'בחרי משמרת תקינה: בוקר, אחה״צ או יום מלא.';
