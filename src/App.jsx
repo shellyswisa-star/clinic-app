@@ -13,6 +13,7 @@ import {
   isShiftTaken as checkShiftTaken,
   validateBookingForm,
 } from './lib/bookingRules';
+import { createBookingSafe, mapBookingError } from './lib/bookingApi';
 
 export default function ClinicBookingApp() {
   const [selectedPlan, setSelectedPlan] = useState(null);
@@ -150,23 +151,25 @@ export default function ClinicBookingApp() {
     try {
       const totalPrice = calculateTotalPrice();
 
-      const { data: bookingData, error: bookingError } = await supabase.from('bookings').insert([
-        {
-          plan_id: selectedPlan.id,
-          full_name: formData.name,
-          phone: formData.phone,
-          profession: formData.profession,
-          selected_date: selectedDate || new Date().toISOString().split('T')[0],
-          selected_shift: selectedShift || 'full-day',
-          total_price: totalPrice,
-          status: 'reserved'
-        }
-      ]).select();
+      const { data: bookingData, error: bookingError } = await createBookingSafe({
+        plan_id: selectedPlan.id,
+        full_name: formData.name,
+        phone: formData.phone,
+        profession: formData.profession,
+        selected_date: selectedDate || new Date().toISOString().split('T')[0],
+        selected_shift: selectedShift || 'full-day',
+        total_price: totalPrice,
+        status: 'reserved',
+      });
 
-      if (bookingError) throw bookingError;
+      if (bookingError) {
+        const mapped = new Error(mapBookingError(bookingError));
+        mapped.cause = bookingError;
+        throw mapped;
+      }
 
-      if (bookingData && bookingData.length > 0) {
-        setCurrentBookingId(bookingData[0].id);
+      if (bookingData?.id) {
+        setCurrentBookingId(bookingData.id);
       }
 
       await supabase.from('orders').insert([

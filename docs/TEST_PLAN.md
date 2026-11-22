@@ -60,7 +60,8 @@ npm run test:ci        # כמו ב-CI
 - [x] Unit: reserved ישן (>10 דק׳) לא חוסם
 - [x] Unit: blocked_slots חוסם
 - [x] Unit: `findDuplicateActiveBookings` מזהה כפילויות בנתונים
-- [ ] **עתידי + DB:** constraint ייחודי / RPC טרנזקציוני בסופבייס (הגנה אמיתית מרוצי תזמון)
+- [x] DB: `create_booking_safe` + trigger + advisory lock (`supabase/prevent-double-booking.sql`)
+- [x] Unit: מיפוי שגיאות `slot_already_booked` / `slot_blocked`
 
 ### 6) אין חיוב כפול
 - [x] Unit: `canStartSave` חוסם כש-`isSaving`
@@ -90,6 +91,6 @@ npm run test:ci        # כמו ב-CI
 ## מה עדיין לא אוטומטי (backlog)
 
 1. בדיקת RLS end-to-end מול פרויקט Supabase ייעודי ל-CI
-2. Race condition: שני משתמשים משריינים במקביל (צריך API/DB lock)
+2. E2E מקבילי: שני דפדפנים משריינים אותה משמרת (מוודא שרק אחד מצליח)
 3. סליקה אמיתית + מניעת חיוב כפול ברמת ספק התשלום
 4. E2E: ביטול/עריכת הזמנה ספציפית ביומן (דורש seed נתונים)

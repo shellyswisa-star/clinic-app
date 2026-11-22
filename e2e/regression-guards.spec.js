@@ -24,13 +24,25 @@ test.describe('Regression guards', () => {
       const url = route.request().url();
       const method = route.request().method();
 
+      // RPC החדש למניעת דאבל-בוקינג
+      if (url.includes('/rpc/create_booking_safe') && method === 'POST') {
+        bookingPosts += 1;
+        await new Promise((r) => setTimeout(r, 800));
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ id: 'test-booking-1' }),
+        });
+        return;
+      }
+
+      // fallback ישן (אם RPC עדיין לא מותקן)
       if (url.includes('/bookings') && method === 'POST') {
         bookingPosts += 1;
-        await new Promise((r) => setTimeout(r, 1500));
+        await new Promise((r) => setTimeout(r, 800));
         await route.fulfill({
           status: 201,
           contentType: 'application/json',
-          headers: { 'content-type': 'application/json' },
           body: JSON.stringify([{ id: 'test-booking-1' }]),
         });
         return;
