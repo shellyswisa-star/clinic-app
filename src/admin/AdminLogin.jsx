@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { mapAuthError } from '../lib/bookingApi';
+import AlertBanner from '../components/AlertBanner.jsx';
 
 export default function AdminLogin({ onLoggedIn }) {
   const [email, setEmail] = useState('');
@@ -67,13 +68,9 @@ export default function AdminLogin({ onLoggedIn }) {
           </div>
 
           {error && (
-            <p
-              role="alert"
-              data-testid="admin-login-error"
-              className="text-red-600 text-xs bg-red-50 border border-red-200 rounded-xl p-3"
-            >
+            <AlertBanner tone="error" testId="admin-login-error" className="text-xs">
               {error}
-            </p>
+            </AlertBanner>
           )}
 
           <button

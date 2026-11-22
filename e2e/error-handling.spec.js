@@ -50,7 +50,7 @@ test.describe('Error handling edge cases', () => {
 
     const alert = page.getByTestId('admin-login-error');
     await expect(alert).toBeVisible({ timeout: 15_000 });
-    await expect(alert).toContainText(/מייל או סיסמה/);
+    await expect(alert).toContainText(/סיסמה|נכונים/);
   });
 
   test('public reserve shows Hebrew error when slot already booked', async ({ page }) => {
@@ -93,7 +93,7 @@ test.describe('Error handling edge cases', () => {
 
     const alert = page.getByTestId('booking-action-error');
     await expect(alert).toBeVisible({ timeout: 15_000 });
-    await expect(alert).toContainText(/כבר נתפסה/);
+    await expect(alert).toContainText(/תפוסה/);
     await expect(page.getByText('תשלום מאובטח')).toHaveCount(0);
   });
 
@@ -127,7 +127,7 @@ test.describe('Error handling edge cases', () => {
     await page.getByPlaceholder(/מספר טלפון/).fill('0501234567');
     await page.getByRole('button', { name: /אישור ושריון מקום/ }).click();
 
-    await expect(page.getByTestId('booking-action-error')).toContainText(/מפתח API/, {
+    await expect(page.getByTestId('booking-action-error')).toContainText(/חיבור למערכת/, {
       timeout: 15_000,
     });
   });
@@ -192,7 +192,7 @@ describeAdmin('Admin error handling (authenticated)', () => {
     await expect(page.getByRole('heading', { name: 'עריכת הזמנה' })).toBeVisible();
 
     await page.getByRole('button', { name: 'שמירת שינויים' }).click();
-    await expect(page.getByTestId('admin-edit-error')).toContainText(/כבר נתפסה/, {
+    await expect(page.getByTestId('admin-edit-error')).toContainText(/תפוסה/, {
       timeout: 15_000,
     });
   });

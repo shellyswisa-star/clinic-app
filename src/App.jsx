@@ -14,6 +14,7 @@ import {
   validateBookingForm,
 } from './lib/bookingRules';
 import { createBookingSafe, mapBookingError } from './lib/bookingApi';
+import AlertBanner from './components/AlertBanner.jsx';
 
 export default function ClinicBookingApp() {
   const [selectedPlan, setSelectedPlan] = useState(null);
@@ -144,7 +145,7 @@ export default function ClinicBookingApp() {
     if (!canStartSave({ isSaving })) return;
 
     if (isShiftTaken(selectedDate, selectedShift)) {
-      setActionError('המשמרת שבחרת כבר תפוסה. נסי תאריך או משמרת אחרת.');
+      setActionError('המשבצת הזו כבר תפוסה. בחרי תאריך או משמרת אחרת.');
       return;
     }
 
@@ -608,13 +609,9 @@ export default function ClinicBookingApp() {
               </div>
 
               {actionError && (
-                <p
-                  role="alert"
-                  data-testid="booking-action-error"
-                  className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl p-3"
-                >
+                <AlertBanner tone="error" testId="booking-action-error">
                   {actionError}
-                </p>
+                </AlertBanner>
               )}
 
               <div className="space-y-3">
@@ -728,13 +725,9 @@ export default function ClinicBookingApp() {
               </div>
 
               {actionError && (
-                <p
-                  role="alert"
-                  data-testid="booking-action-error"
-                  className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl p-3"
-                >
+                <AlertBanner tone="error" testId="booking-action-error">
                   {actionError}
-                </p>
+                </AlertBanner>
               )}
 
               <div className="space-y-3">

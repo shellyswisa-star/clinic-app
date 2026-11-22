@@ -16,7 +16,7 @@ test.describe('Admin security & access control', () => {
     await page.getByRole('button', { name: 'כניסה לדשבורד' }).click();
     await expect(page.getByRole('heading', { name: 'כניסת מנהלת' })).toBeVisible();
     await expect(page.getByTestId('admin-login-error')).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByTestId('admin-login-error')).toContainText(/מייל או סיסמה|API|רשת|התחברות/);
+    await expect(page.getByTestId('admin-login-error')).toContainText(/סיסמה|חיבור|התחבר/);
   });
 
   test('public booking stays available without auth', async ({ page }) => {

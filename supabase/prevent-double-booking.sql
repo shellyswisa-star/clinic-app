@@ -115,15 +115,19 @@ begin
   perform public.lock_booking_slot(new.selected_date, new.selected_shift);
 
   if public.booking_slot_is_blocked(new.selected_date, new.selected_shift) then
-    raise exception 'slot_blocked'
-      using errcode = 'P0001',
-            message = 'slot_blocked';
+    -- אל תשתמשי ב-USING message יחד עם מחרוזת אחרי RAISE — Postgres זורק
+    -- "RAISE option already specified: MESSAGE"
+    raise exception using
+      errcode = 'P0001',
+      message = 'slot_blocked',
+      hint = 'choose_another_slot';
   end if;
 
   if public.booking_slot_conflicts(new.selected_date, new.selected_shift, new.id) then
-    raise exception 'slot_already_booked'
-      using errcode = 'P0001',
-            message = 'slot_already_booked';
+    raise exception using
+      errcode = 'P0001',
+      message = 'slot_already_booked',
+      hint = 'choose_another_slot';
   end if;
 
   return new;
@@ -167,15 +171,17 @@ begin
   perform public.lock_booking_slot(p_selected_date, p_selected_shift);
 
   if public.booking_slot_is_blocked(p_selected_date, p_selected_shift) then
-    raise exception 'slot_blocked'
-      using errcode = 'P0001',
-            message = 'slot_blocked';
+    raise exception using
+      errcode = 'P0001',
+      message = 'slot_blocked',
+      hint = 'choose_another_slot';
   end if;
 
   if public.booking_slot_conflicts(p_selected_date, p_selected_shift, null) then
-    raise exception 'slot_already_booked'
-      using errcode = 'P0001',
-            message = 'slot_already_booked';
+    raise exception using
+      errcode = 'P0001',
+      message = 'slot_already_booked',
+      hint = 'choose_another_slot';
   end if;
 
   insert into public.bookings (

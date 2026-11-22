@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { supabase } from './supabaseClient';
+import { mapBookingError } from './lib/bookingApi';
+import AlertBanner from './components/AlertBanner.jsx';
 
 export default function OrderCheckout() {
   const [customerName, setCustomerName] = useState('');
@@ -30,7 +32,7 @@ export default function OrderCheckout() {
       setIsSuccess(true);
     } catch (err) {
       console.error('Error saving order:', err.message);
-      setErrorMessage('אירעה שגיאה בשמירת ההזמנה. בדקי את החיבור ונסה שוב.');
+      setErrorMessage(mapBookingError(err));
     } finally {
       setIsLoading(false);
     }
@@ -81,7 +83,7 @@ export default function OrderCheckout() {
           />
         </div>
 
-        {errorMessage && <p style={{ color: 'red' }}>{errorMessage}</p>}
+        {errorMessage && <AlertBanner tone="error">{errorMessage}</AlertBanner>}
 
         <button 
           type="submit" 

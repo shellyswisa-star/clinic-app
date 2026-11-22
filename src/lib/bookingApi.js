@@ -19,39 +19,48 @@ function errorBlob(error) {
     .toLowerCase();
 }
 
-/** מיפוי שגיאות הזמנה / עדכון משבצת להודעות בעברית */
+/** מיפוי שגיאות הזמנה / עדכון משבצת להודעות ברורות למשתמשת */
 export function mapBookingError(error) {
   const raw = errorBlob(error);
 
+  // באג SQL ישן: RAISE עם MESSAGE פעמיים — לטפל עד שמריצים את ה-SQL המעודכן
+  if (/raise option already specified/.test(raw)) {
+    return 'לא ניתן לשמור את המשבצת כרגע. נסי תאריך או משמרת אחרת, או רענני וראי אם המשבצת פנויה.';
+  }
   if (raw.includes(SLOT_ALREADY_BOOKED) || raw.includes('already booked')) {
-    return 'המשמרת כבר נתפסה. נסי תאריך או משמרת אחרת.';
+    return 'המשבצת הזו כבר תפוסה. בחרי תאריך או משמרת אחרת.';
   }
   if (raw.includes(SLOT_BLOCKED)) {
-    return 'המשמרת חסומה במערכת. נסי מועד אחר.';
+    return 'המשבצת הזו חסומה במערכת. בחרי מועד אחר.';
   }
   if (raw.includes('invalid_shift')) {
-    return 'משמרת לא תקינה.';
+    return 'בחרי משמרת תקינה: בוקר, אחה״צ או יום מלא.';
   }
   if (/unauthorized_invalid_api_key|invalid.?api.?key|no api key/.test(raw)) {
-    return 'מפתח API לא תקין. בדקי את הגדרות הסביבה וריסטארט לשרת הפיתוח.';
+    return 'חיבור למערכת נכשל. נסי לרענן את העמוד. אם זה נמשך — פני למנהלת.';
   }
   if (/jwt expired|session.?expired|not authenticated|invalid.?jwt/.test(raw)) {
-    return 'פג תוקף ההתחברות. התחברי מחדש.';
+    return 'פג תוקף ההתחברות. התחברי מחדש והמשיכי.';
   }
-  if (/row-level security|rls|permission denied|42501|401|403/.test(raw)) {
-    return 'אין הרשאה לבצע את הפעולה הזו.';
+  if (/row-level security|rls|permission denied|42501/.test(raw)) {
+    return 'אין הרשאה לבצע את הפעולה הזו. אם את מנהלת — התחברי מחדש.';
   }
   if (/failed to fetch|networkerror|network request failed|timeout|econnrefused/.test(raw)) {
-    return 'בעיית רשת. בדקי את החיבור ונסי שוב.';
+    return 'אין חיבור יציב לשרת. בדקי אינטרנט ונסי שוב.';
   }
   if (/check constraint|23514|22p02|invalid input syntax/.test(raw)) {
-    return 'הנתונים שנשלחו לא תקינים. בדקי תאריך, משמרת וסכום.';
+    return 'חלק מהפרטים לא תקינים. בדקי תאריך, משמרת וסכום.';
   }
   if (/duplicate key|23505/.test(raw)) {
-    return 'רשומה כפולה — ייתכן שהפעולה כבר בוצעה.';
+    return 'נראה שהפעולה כבר בוצעה. רענני את הרשימה לפני ניסיון נוסף.';
   }
 
-  return error?.message || 'שגיאה בשמירת ההזמנה';
+  // לא להציג ג׳רגון טכני גולמי למשתמשת
+  const msg = (error?.message || '').trim();
+  if (!msg || /^(error|exception|p0001|xx000)\b/i.test(msg) || /raise option|sqlstate|postgres/i.test(msg)) {
+    return 'משהו השתבש בשמירה. נסי שוב בעוד רגע.';
+  }
+  return msg;
 }
 
 /** מיפוי שגיאות התחברות מנהלת */
@@ -59,29 +68,31 @@ export function mapAuthError(error) {
   const raw = errorBlob(error);
 
   if (/unauthorized_invalid_api_key|invalid.?api.?key/.test(raw)) {
-    return 'מפתח API לא תקין. בדקי את הגדרות הסביבה.';
+    return 'חיבור למערכת נכשל. רענני את העמוד או בדקי הגדרות סביבה.';
   }
   if (/invalid.?login|invalid.?credentials|email.?not.?confirmed|user not found/.test(raw)) {
-    return 'מייל או סיסמה שגויים.';
+    return 'המייל או הסיסמה לא נכונים. נסי שוב.';
   }
   if (/too many requests|rate.?limit/.test(raw)) {
-    return 'יותר מדי ניסיונות. נסי שוב בעוד כמה דקות.';
+    return 'יותר מדי ניסיונות. המתיני כמה דקות ונסי שוב.';
   }
   if (/failed to fetch|networkerror|timeout/.test(raw)) {
-    return 'בעיית רשת. בדקי את החיבור ונסי שוב.';
+    return 'אין חיבור יציב. בדקי אינטרנט ונסי שוב.';
   }
 
-  return error?.message || 'ההתחברות נכשלה. בדקי מייל וסיסמה.';
+  return 'לא הצלחנו להתחבר. בדקי מייל וסיסמה ונסי שוב.';
 }
+
+const GENERIC_BOOKING_FALLBACK = 'משהו השתבש בשמירה. נסי שוב בעוד רגע.';
 
 /** מיפוי כללי לפעולות אדמין (מחירים / חסימות / טעינה) */
 export function mapAdminError(error, fallback = 'הפעולה נכשלה') {
-  const mapped = mapBookingError(error);
-  if (mapped && mapped !== (error?.message || 'שגיאה בשמירת ההזמנה')) {
-    return mapped;
+  if (!error || (typeof error === 'object' && !error.message && !error.code && !error.details)) {
+    return fallback;
   }
-  if (error?.message) return error.message;
-  return fallback;
+  const mapped = mapBookingError(error);
+  if (mapped === GENERIC_BOOKING_FALLBACK) return fallback;
+  return mapped;
 }
 
 /**

@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient';
 import { SHIFT_LABELS } from '../clinicConfig';
 import { mapAdminError, mapBookingError } from '../lib/bookingApi';
 import { validateAdminBookingEdit } from '../lib/bookingRules';
+import AlertBanner from '../components/AlertBanner.jsx';
 import AdminPricing from './AdminPricing.jsx';
 import AdminBlockedSlots from './AdminBlockedSlots.jsx';
 import AdminBookingsCalendar from './AdminBookingsCalendar.jsx';
@@ -243,18 +244,8 @@ export default function AdminDashboard({ session, onLogout }) {
           ))}
         </div>
 
-        {notice && (
-          <p className="text-sm text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl p-3">{notice}</p>
-        )}
-        {error && (
-          <p
-            role="alert"
-            data-testid="admin-error"
-            className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl p-3"
-          >
-            {error}
-          </p>
-        )}
+        {notice && <AlertBanner tone="success">{notice}</AlertBanner>}
+        {error && <AlertBanner tone="error" testId="admin-error">{error}</AlertBanner>}
 
         {tab === 'pricing' && (
           <AdminPricing onNotice={setNotice} onError={setError} />
@@ -326,13 +317,9 @@ export default function AdminDashboard({ session, onLogout }) {
                 </div>
 
                 {error && (
-                  <p
-                    role="alert"
-                    data-testid="admin-edit-error"
-                    className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl p-3"
-                  >
+                  <AlertBanner tone="error" testId="admin-edit-error">
                     {error}
-                  </p>
+                  </AlertBanner>
                 )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
