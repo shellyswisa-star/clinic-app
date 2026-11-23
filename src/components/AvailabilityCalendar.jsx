@@ -68,14 +68,14 @@ export default function AvailabilityCalendar({
   return (
     <div className="space-y-4" data-testid="availability-calendar">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" dir="ltr">
           <button
             type="button"
             onClick={() => goMonth(-1)}
             className="px-3 py-2 rounded-xl text-sm font-bold bg-white border border-[#e8dfd3] hover:bg-[#f5ebe0] cursor-pointer"
             aria-label="חודש קודם"
           >
-            ›
+            ‹
           </button>
           <h3 className="text-base sm:text-lg font-bold text-[#5c4a45] min-w-[9rem] text-center capitalize">
             {monthLabel}
@@ -86,7 +86,7 @@ export default function AvailabilityCalendar({
             className="px-3 py-2 rounded-xl text-sm font-bold bg-white border border-[#e8dfd3] hover:bg-[#f5ebe0] cursor-pointer"
             aria-label="חודש הבא"
           >
-            ‹
+            ›
           </button>
         </div>
 

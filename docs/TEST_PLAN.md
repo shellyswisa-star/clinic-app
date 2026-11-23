@@ -109,12 +109,14 @@ npm run test:ci        # כמו ב-CI
 4. `supabase/series-hold-slots.sql`
 5. `supabase/personal-area-lookup.sql` — חיפוש אזור אישי לפי טלפון (legacy)
 6. `supabase/personal-area-otp.sql` — `get_my_bookings()` אחרי Phone OTP
+7. `supabase/revoke-phone-lookup-anon.sql` — אחרי OTP חי: ביטול `get_bookings_by_phone` ל־anon
 
 ### הפעלת OTP בסופבייס
 1. Authentication → Providers → **Phone** → Enable
-2. לחבר **Twilio** (Account SID, Auth Token, Messaging Service / From number)
+2. לחבר **Twilio Verify** (Account SID, Auth Token, Verify Service SID)
 3. להריץ `personal-area-otp.sql`
 4. לבדוק באזור האישי: טלפון → SMS → קוד → הזמנות
+5. להריץ `revoke-phone-lookup-anon.sql`
 
 ## מה עדיין לא אוטומטי (backlog)
 
