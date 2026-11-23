@@ -62,6 +62,12 @@ describe('mapPersonalOtpError', () => {
         message: 'Error sending confirmation OTP: 21608 Primary Compliance Profile',
       }),
     ).toMatch(/Twilio|Compliance|Caller/);
+    expect(
+      mapPersonalOtpError({
+        code: 'sms_send_failed',
+        message: 'Delivery channel disabled: SMS More information: 60223',
+      }),
+    ).toMatch(/SMS|Verify|Delivery/);
   });
 
   it('maps rate limit, invalid OTP, and auth gaps', () => {

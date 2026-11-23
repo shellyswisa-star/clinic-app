@@ -67,6 +67,9 @@ export function mapPersonalOtpError(error) {
   if (/21608|compliance.?profile|unverified.?numbers|verified.?caller/i.test(raw)) {
     return 'Twilio חוסם שליחה למספר זה. יש לאמת את המספר ב־Verified Caller IDs, או לאשר Primary Compliance Profile ב־Trust Hub.';
   }
+  if (/60223|delivery.?channel.?disabled/i.test(raw)) {
+    return 'ערוץ SMS כבוי ב־Twilio Verify. ב־Verify → Services → השירות שלכן → הפעילו Delivery Channel: SMS.';
+  }
   if (/sms_send_failed|error sending confirmation otp/i.test(raw)) {
     return 'שליחת ה־SMS נכשלה אצל ספק ה־SMS (Twilio). בדקו אימות מספר / Compliance Profile וחזרו שוב.';
   }
