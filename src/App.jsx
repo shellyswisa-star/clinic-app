@@ -25,6 +25,7 @@ import {
   getSessionDates as buildSessionDates,
 } from './lib/schedule';
 import AlertBanner from './components/AlertBanner.jsx';
+import AvailabilityCalendar from './components/AvailabilityCalendar.jsx';
 import LandingPage from './components/LandingPage.jsx';
 import PersonalArea from './components/PersonalArea.jsx';
 
@@ -197,13 +198,13 @@ export default function ClinicBookingApp() {
           : [selectedDate || new Date().toISOString().split('T')[0]];
 
     if (!datesToBook.length) {
-      setActionError('חסרים תאריכים לשריון. חזרי לבחירת מועדים.');
+      setActionError('חסרים תאריכים לשריון. חזרו לבחירת מועדים.');
       return;
     }
 
     const blocked = datesToBook.find((d) => isShiftTaken(d, shift));
     if (blocked) {
-      setActionError(`המועד ${formatDateHe(blocked)} כבר תפוס. שני בחירה ביומן.`);
+      setActionError(`המועד ${formatDateHe(blocked)} כבר תפוס. שנו בחירה ביומן.`);
       return;
     }
 
@@ -297,7 +298,7 @@ export default function ClinicBookingApp() {
       setStep(5);
     } catch (err) {
       console.error('❌ שגיאה בעדכון תשלום:', err);
-      setActionError(mapBookingError(err) || 'עדכון התשלום נכשל. נסי שוב.');
+      setActionError(mapBookingError(err) || 'עדכון התשלום נכשל. נסו שוב.');
     } finally {
       setIsSaving(false);
     }
@@ -364,6 +365,87 @@ export default function ClinicBookingApp() {
     return <PersonalArea onBack={() => setStep(0)} />;
   }
 
+  // שלב 2: יומן זמינות במסך מלא (שעתי / שבועי / יומי)
+  if (step === 2 && selectedPlan && selectedPlan.id !== 'monthly') {
+    const calendarMode = selectedPlan.id === 'daily' ? 'full-day' : 'partial';
+    const canContinue =
+      selectedPlan.id === 'daily'
+        ? Boolean(selectedDate) && !isShiftTaken(selectedDate, 'full-day')
+        : Boolean(selectedDate && selectedShift);
+
+    return (
+      <div
+        dir="rtl"
+        className="min-h-screen bg-[#fcf9f2] text-[#4a3e3d] font-sans py-6 px-3 sm:px-6"
+        data-testid="availability-step"
+      >
+        <div className="w-full max-w-5xl mx-auto space-y-5">
+          <button
+            type="button"
+            onClick={() => setStep(1)}
+            className="text-xs font-semibold text-[#8c5e47] hover:underline cursor-pointer"
+          >
+            חזרה
+          </button>
+
+          <div className="text-right space-y-1">
+            <h2 className="text-2xl font-bold text-[#5c4a45] title-handwritten tracking-wide">
+              בחירת מועד ביומן
+            </h2>
+            <p className="text-xs text-[#8c746c]">
+              מסלול נבחר:{' '}
+              <span className="font-bold text-[#8c5e47]">{selectedPlan.title}</span>
+              {' · '}
+              לחצו על משמרת פנויה ביום הרצוי
+            </p>
+          </div>
+
+          <AvailabilityCalendar
+            mode={calendarMode}
+            minDateStr={todayStr}
+            selectedDate={selectedDate}
+            selectedShift={selectedPlan.id === 'daily' ? 'full-day' : selectedShift}
+            isShiftTaken={isShiftTaken}
+            onSelect={({ dateStr, shiftId }) => {
+              setDateErrorMsg('');
+              setSelectedDate(dateStr);
+              setSelectedShift(shiftId);
+            }}
+          />
+
+          {selectedDate && (
+            <div className="bg-[#faf6ef] border border-[#e8dfd3] rounded-2xl p-4 text-right space-y-3 shadow-sm">
+              <p className="text-sm text-[#5c4a45]">
+                נבחר:{' '}
+                <strong>{formatDateHe(selectedDate)}</strong>
+                {' · '}
+                <strong>
+                  {SHIFT_WINDOWS[selectedShift]?.label || selectedShift}
+                </strong>
+              </p>
+              {selectedPlan.id === 'session' && (
+                <p className="text-[11px] text-[#8c746c]">
+                  במפגש שבועי ישורינו גם את 3 השבועות הבאים באותו יום ובאותה משמרת.
+                </p>
+              )}
+              <button
+                type="button"
+                disabled={!canContinue}
+                onClick={() => {
+                  if (selectedPlan.id === 'daily') setSelectedShift('full-day');
+                  setStep(3);
+                }}
+                className="w-full bg-[#8c5e47] text-[#faf4eb] py-3.5 rounded-xl font-bold text-sm disabled:bg-[#ebdcc8] disabled:text-[#b8a096] hover:bg-[#724a35] transition-colors shadow-md cursor-pointer"
+              >
+                המשך לפרטים ושריון מקום
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div dir="rtl" className="min-h-screen bg-[#fcf9f2] text-[#4a3e3d] font-sans py-8 px-4 flex justify-center items-center">
       <div className="w-full max-w-lg bg-[#faf6ef] rounded-3xl shadow-xl border border-[#e8dfd3] overflow-hidden">
@@ -397,11 +479,11 @@ export default function ClinicBookingApp() {
                 onClick={() => setStep(0)}
                 className="text-xs font-semibold text-[#8c5e47] hover:underline cursor-pointer"
               >
-                ← חזרה
+                חזרה
               </button>
               <div className="text-right">
                 <h2 className="text-xl font-bold text-[#5c4a45] title-handwritten tracking-wide">בחירת מסלול השכרה</h2>
-                <p className="text-xs text-[#8c746c]">בחרי את המסלול המתאים ביותר לאופי הטיפולים שלך</p>
+                <p className="text-xs text-[#8c746c]">בחרו את המסלול המתאים ביותר לאופי הטיפולים שלכם</p>
               </div>
 
               <div className="space-y-3">
@@ -438,14 +520,15 @@ export default function ClinicBookingApp() {
             </div>
           )}
 
-          {/* שלב 2: בחירת מועד ומשמרת עם תצוגת זמינות ויזואלית */}
-          {step === 2 && selectedPlan && (
+          {/* שלב 2: השכרה חודשית (יומן מלא למסלולים אחרים — early return למעלה) */}
+          {step === 2 && selectedPlan?.id === 'monthly' && (
             <div className="space-y-5 text-right">
               <button 
+                type="button"
                 onClick={() => setStep(1)} 
-                className="text-xs font-semibold text-[#8c5e47] hover:underline flex items-center gap-1 cursor-pointer"
+                className="text-xs font-semibold text-[#8c5e47] hover:underline cursor-pointer"
               >
-                ← חזרה לבחירת מסלולים
+                חזרה
               </button>
 
               <div>
@@ -453,132 +536,9 @@ export default function ClinicBookingApp() {
                 <p className="text-xs text-[#8c746c]">מסלול נבחר: <span className="font-bold text-[#8c5e47]">{selectedPlan.title}</span></p>
               </div>
 
-              {/* מפגש שבועי / השכרה שעתית */}
-              {(selectedPlan.id === 'session' || selectedPlan.id === 'hourly') && (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-[#5c4a45] mb-1.5">1. בחרי תאריך מבוקש (א' - ה'):</label>
-                    <input 
-                      type="date" 
-                      min={todayStr}
-                      value={selectedDate}
-                      onClick={(e) => e.target.showPicker && e.target.showPicker()}
-                      onChange={(e) => handleDateSelection(e.target.value)}
-                      className="w-full p-3 border border-[#cbd5e1] rounded-xl text-sm bg-[#faf8f5] text-[#4a3e3d] focus:outline-none focus:ring-2 focus:ring-[#8c5e47] cursor-pointer"
-                    />
-                  </div>
-
-                  {dateErrorMsg && (
-                    <div className="p-3 bg-[#fce8e6] border border-[#f5c2c7] rounded-xl text-xs text-[#c5221f] font-medium flex items-center gap-2">
-                      <span>⚠️</span>
-                      <span>{dateErrorMsg}</span>
-                    </div>
-                  )}
-
-                  {/* תצוגת זמינות משמרות ויזואלית ברגע שנבחר תאריך */}
-                  {selectedDate && !dateErrorMsg && (
-                    <div className="space-y-2 pt-1">
-                      <label className="block text-xs font-bold text-[#5c4a45]">2. בחרי משמרת פנויה בתאריך זה:</label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {PARTIAL_SHIFTS.map((shift) => {
-                          const taken = isShiftTaken(selectedDate, shift.id);
-                          const isSelected = selectedShift === shift.id;
-
-                          return (
-                            <button
-                              key={shift.id}
-                              type="button"
-                              disabled={taken}
-                              onClick={() => setSelectedShift(shift.id)}
-                              className={`p-3 rounded-xl border text-xs font-medium text-center transition-all flex flex-col items-center justify-between gap-1 ${
-                                taken 
-                                  ? 'bg-stone-200/60 border-stone-300 text-stone-400 cursor-not-allowed line-through' 
-                                  : isSelected
-                                    ? 'border-[#8c5e47] bg-[#8c5e47] text-white shadow-sm cursor-pointer'
-                                    : 'border-[#ebdcc4] bg-[#fcfaf4] hover:bg-[#f6ebd9] text-[#5c4a45] cursor-pointer'
-                              }`}
-                            >
-                              <span>{shift.label}</span>
-                              <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${
-                                taken ? 'bg-stone-300 text-stone-600' : isSelected ? 'bg-white/20 text-white' : 'bg-[#f4ebd9] text-[#8c5e47]'
-                              }`}>
-                                {taken ? 'תפוס במערכת' : 'פנוי להרשמה'}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  <button 
-                    disabled={!selectedDate || !selectedShift}
-                    onClick={() => setStep(3)}
-                    className="w-full bg-[#8c5e47] text-[#faf4eb] py-3.5 rounded-xl font-bold text-sm disabled:bg-[#ebdcc8] disabled:text-[#b8a096] hover:bg-[#724a35] transition-colors shadow-md mt-4 cursor-pointer"
-                  >
-                    המשך לפרטים ושריון מקום
-                  </button>
-                </div>
-              )}
-
-              {/* השכרה יומית חד-פעמית */}
-              {selectedPlan.id === 'daily' && (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-[#5c4a45] mb-1.5">בחרי תאריך ליום השכרה מלא (א' - ה'):</label>
-                    <input 
-                      type="date" 
-                      min={todayStr}
-                      value={selectedDate}
-                      onClick={(e) => e.target.showPicker && e.target.showPicker()}
-                      onChange={(e) => handleDateSelection(e.target.value)}
-                      className="w-full p-3 border border-[#cbd5e1] rounded-xl text-sm bg-[#faf8f5] text-[#4a3e3d] focus:outline-none focus:ring-2 focus:ring-[#8c5e47] cursor-pointer"
-                    />
-                  </div>
-
-                  {dateErrorMsg && (
-                    <div className="p-3 bg-[#fce8e6] border border-[#f5c2c7] rounded-xl text-xs text-[#c5221f] font-medium flex items-center gap-2">
-                      <span>⚠️</span>
-                      <span>{dateErrorMsg}</span>
-                    </div>
-                  )}
-
-                  {selectedDate && !dateErrorMsg && (
-                    <div className="mt-2">
-                      {isShiftTaken(selectedDate, 'full-day') ? (
-                        <div className="p-3 bg-[#fce8e6] border border-[#f5c2c7] rounded-xl text-xs text-[#c5221f] font-medium flex items-center gap-2">
-                          <span>⚠️</span>
-                          <span>היום המלא כבר תפוס במערכת! נא לבחור תאריך אחר.</span>
-                        </div>
-                      ) : (
-                        <div className="p-3 bg-[#e6f4ea] border border-[#b7e1cd] rounded-xl text-xs text-[#137333] font-medium flex items-center gap-2">
-                          <span>✓</span>
-                          <span>היום המלא פנוי להשכרה!</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="bg-[#f5ebe0] border border-[#ebdcc4] p-3.5 rounded-xl text-xs text-[#5c4a45] space-y-1">
-                    <p>🕒 <strong>שעות הפעילות ליום מלא:</strong> {SHIFT_WINDOWS['full-day'].short}</p>
-                    <p className="text-[11px] text-[#8c746c]">הקליניקה תעמוד לרשותך באופן בלעדי לאורך כל היום.</p>
-                  </div>
-
-                  <button 
-                    disabled={!selectedDate || isShiftTaken(selectedDate, 'full-day')}
-                    onClick={() => { setSelectedShift('full-day'); setStep(3); }}
-                    className="w-full bg-[#8c5e47] text-[#faf4eb] py-3.5 rounded-xl font-bold text-sm disabled:bg-[#ebdcc8] disabled:text-[#b8a096] hover:bg-[#724a35] transition-colors shadow-md mt-2 cursor-pointer"
-                  >
-                    המשך לפרטים ושריון מקום
-                  </button>
-                </div>
-              )}
-
-              {/* השכרה חודשית קבועה */}
-              {selectedPlan.id === 'monthly' && (
-                <div className="space-y-4">
+              <div className="space-y-4">
                   <div className="space-y-2 bg-[#f5ebe0] p-3.5 rounded-2xl border border-[#ebdcc4]">
-                    <label className="block text-xs font-bold text-[#5c4a45]">1. בחרי היקף ימים בשבוע:</label>
+                    <label className="block text-xs font-bold text-[#5c4a45]">1. בחרו היקף ימים בשבוע:</label>
                     <div className="grid grid-cols-3 gap-2">
                       {[3, 4, 5].map((days) => {
                         const amount = calcPlanTotal('monthly', pricingRows, { subPlanDays: days });
@@ -604,7 +564,7 @@ export default function ClinicBookingApp() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="block text-xs font-bold text-[#5c4a45]">2. בחרי משמרת קבועה:</label>
+                    <label className="block text-xs font-bold text-[#5c4a45]">2. בחרו משמרת קבועה:</label>
                     <div className="grid grid-cols-2 gap-2">
                       {PARTIAL_SHIFTS.map((shift) => (
                         <button
@@ -627,7 +587,7 @@ export default function ClinicBookingApp() {
                     <div className="space-y-2">
                       <div className="flex justify-between items-center">
                         <label className="block text-xs font-bold text-[#5c4a45]">
-                          3. סמני {selectedSubPlanDays} ימים קבועים בשבוע:
+                          3. סמנו {selectedSubPlanDays} ימים קבועים בשבוע:
                         </label>
                         <span className="text-[11px] text-[#8c5e47] font-semibold">
                           ({selectedDays.length} / {selectedSubPlanDays} נבחרו)
@@ -757,7 +717,7 @@ export default function ClinicBookingApp() {
                           </ul>
                           {!monthlyAllFree && monthlyConcreteDates.length > 0 && (
                             <AlertBanner tone="error">
-                              חלק מהתאריכים תפוסים. שני ימים בשבוע, משמרת, תאריך התחלה או משך.
+                              חלק מהתאריכים תפוסים. שנו ימים בשבוע, משמרת, תאריך התחלה או משך.
                             </AlertBanner>
                           )}
                         </div>
@@ -781,8 +741,6 @@ export default function ClinicBookingApp() {
                     המשך לפרטים ושריון מקום
                   </button>
                 </div>
-              )}
-
             </div>
           )}
 
@@ -795,14 +753,14 @@ export default function ClinicBookingApp() {
                   await handleCancelCurrentBooking();
                   setStep(2);
                 }}
-                className="text-xs font-semibold text-[#8c5e47] hover:underline flex items-center gap-1 cursor-pointer"
+                className="text-xs font-semibold text-[#8c5e47] hover:underline cursor-pointer"
               > 
-                ← חזרה לבחירת זמנים ({selectedPlan?.title})
+                חזרה
               </button>
 
               <div>
                 <h2 className="text-xl font-bold text-[#5c4a45] title-handwritten tracking-wide">פרטי המזמין/ה</h2>
-                <p className="text-xs text-[#8c746c]">הזיני את פרטייך לשריון התור לפני תשלום</p>
+                <p className="text-xs text-[#8c746c]">הזינו את הפרטים לשריון התור לפני תשלום</p>
               </div>
 
               {actionError && (
@@ -929,14 +887,14 @@ export default function ClinicBookingApp() {
                   await handleCancelCurrentBooking();
                   setStep(3);
                 }}
-                className="text-xs font-semibold text-[#8c5e47] hover:underline flex items-center gap-1 cursor-pointer"
+                className="text-xs font-semibold text-[#8c5e47] hover:underline cursor-pointer"
               >
-                ← חזרה לעריכת פרטים
+                חזרה
               </button>
 
               <div>
                 <h2 className="text-xl font-bold text-[#5c4a45] title-handwritten tracking-wide">תשלום מאובטח</h2>
-                <p className="text-xs text-[#8c746c]">המקום שוריין עבורך. השלימי את התשלום להנפקת קבלה</p>
+                <p className="text-xs text-[#8c746c]">המקום שוריין. השלימו את התשלום להנפקת קבלה</p>
               </div>
 
               {actionError && (
@@ -946,7 +904,7 @@ export default function ClinicBookingApp() {
               )}
 
               <div className="space-y-3">
-                <label className="block text-xs font-bold text-[#5c4a45]">בחרי אמצעי תשלום:</label>
+                <label className="block text-xs font-bold text-[#5c4a45]">בחרו אמצעי תשלום:</label>
                 <div className="grid grid-cols-3 gap-2">
                   {[
                     { id: 'credit', label: '💳 אשראי' },

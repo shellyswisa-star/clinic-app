@@ -110,7 +110,7 @@ export default function PersonalArea({ onBack }) {
       setDisplayPhone(normalizePhoneDigits(phone));
       setPhase('code');
       setOtp('');
-      setNotice('נשלח אלייך קוד ב־SMS. הזיני אותו כאן.');
+      setNotice('נשלח אליכם קוד ב־SMS. הזינו אותו כאן.');
     } catch (err) {
       setError(mapPersonalOtpError(err));
     } finally {
@@ -125,7 +125,7 @@ export default function PersonalArea({ onBack }) {
 
     const code = otp.replace(/\D/g, '');
     if (code.length < 6) {
-      setError('הזיני את הקוד בן 6 הספרות שנשלח ב־SMS.');
+      setError('הזינו את הקוד בן 6 הספרות שנשלח ב־SMS.');
       return;
     }
 
@@ -174,7 +174,7 @@ export default function PersonalArea({ onBack }) {
           onClick={handleBack}
           className="text-xs font-semibold text-[#8c5e47] hover:underline cursor-pointer"
         >
-          ← חזרה
+          חזרה
         </button>
 
         <div className="bg-[#faf6ef] border border-[#e8dfd3] rounded-3xl shadow-xl overflow-hidden">
@@ -185,11 +185,11 @@ export default function PersonalArea({ onBack }) {
               </h1>
               <p className="text-xs text-[#8c746c] leading-relaxed">
                 {phase === 'phone' &&
-                  'הזיני את מספר הטלפון שבו בוצעה ההזמנה — נשלח אלייך קוד לאימות.'}
+                  'הזינו את מספר הטלפון שבו בוצעה ההזמנה — יישלח אליכם קוד לאימות.'}
                 {phase === 'code' &&
-                  `הזיני את הקוד שנשלח ב־SMS למספר ${displayPhone}.`}
+                  `הזינו את הקוד שנשלח ב־SMS למספר ${displayPhone}.`}
                 {phase === 'done' &&
-                  `מאומתת · ${displayPhone}. להלן ההזמנות שלך.`}
+                  `מאומת · ${displayPhone}. להלן ההזמנות שלך.`}
               </p>
             </div>
 
@@ -213,7 +213,7 @@ export default function PersonalArea({ onBack }) {
                   data-testid="personal-send-otp"
                   className="w-full bg-[#8c5e47] text-white px-4 py-3 rounded-xl text-sm font-bold hover:bg-[#724a35] disabled:bg-stone-300 cursor-pointer"
                 >
-                  {loading ? 'שולחת קוד...' : 'שליחת קוד ב־SMS'}
+                  {loading ? 'שולחים קוד...' : 'שליחת קוד ב־SMS'}
                 </button>
               </form>
             )}
@@ -239,7 +239,7 @@ export default function PersonalArea({ onBack }) {
                   data-testid="personal-verify-otp"
                   className="w-full bg-[#8c5e47] text-white px-4 py-3 rounded-xl text-sm font-bold hover:bg-[#724a35] disabled:bg-stone-300 cursor-pointer"
                 >
-                  {loading ? 'מאמתת...' : 'אימות והצגת הזמנות'}
+                  {loading ? 'מאמתים...' : 'אימות והצגת הזמנות'}
                 </button>
                 <button
                   type="button"
@@ -271,7 +271,7 @@ export default function PersonalArea({ onBack }) {
 
             {phase === 'done' && bookings && bookings.length === 0 && (
               <AlertBanner tone="info" testId="personal-empty">
-                לא נמצאו הזמנות למספר {displayPhone}. בדקי שהמספר זהה לזה שמילאת בהזמנה.
+                לא נמצאו הזמנות למספר {displayPhone}. בדקו שהמספר זהה לזה שמילאתם בהזמנה.
               </AlertBanner>
             )}
 
@@ -369,7 +369,7 @@ export default function PersonalArea({ onBack }) {
             )}
 
             <p className="text-[11px] text-[#8c746c] text-right leading-relaxed">
-              לשינוי או ביטול מועד — פני בוואטסאפ או דרך המנהלת. כאן מוצגת צפייה בלבד.
+              לשינוי או ביטול מועד — פנו בוואטסאפ או דרך המנהלת. כאן מוצגת צפייה בלבד.
             </p>
           </div>
         </div>

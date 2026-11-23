@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { hasAdminCredentials, loginAsAdmin } from './helpers/adminAuth.js';
-import { enterBookingFromLanding } from './helpers/publicFlow.js';
+import { enterBookingFromLanding, pickCalendarShift } from './helpers/publicFlow.js';
 
 function nextWeekdayIso(offsetDays = 2) {
   const d = new Date();
@@ -84,7 +84,7 @@ test.describe('Error handling edge cases', () => {
 
     await enterBookingFromLanding(page);
     await page.getByRole('heading', { name: 'השכרה יומית חד-פעמית' }).click();
-    await page.locator('input[type="date"]').fill(nextWeekdayIso(2));
+    await pickCalendarShift(page, nextWeekdayIso(2), 'full-day');
     await page.getByRole('button', { name: /המשך לפרטים/ }).click();
     await expect(page.getByText('פרטי המזמין/ה')).toBeVisible();
 
@@ -122,7 +122,7 @@ test.describe('Error handling edge cases', () => {
 
     await enterBookingFromLanding(page);
     await page.getByRole('heading', { name: 'השכרה יומית חד-פעמית' }).click();
-    await page.locator('input[type="date"]').fill(nextWeekdayIso(3));
+    await pickCalendarShift(page, nextWeekdayIso(3), 'full-day');
     await page.getByRole('button', { name: /המשך לפרטים/ }).click();
     await page.getByPlaceholder('שם מלא *').fill('בדיקת מפתח');
     await page.getByPlaceholder(/מספר טלפון/).fill('0501234567');

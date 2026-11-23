@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { enterBookingFromLanding } from './helpers/publicFlow.js';
+import { enterBookingFromLanding, pickCalendarShift } from './helpers/publicFlow.js';
 
 test.describe('Landing page', () => {
   test('shows brand, space pitch and plan CTA before booking', async ({ page }) => {
@@ -67,7 +67,7 @@ test.describe('Landing page', () => {
     await page.getByTestId('personal-verify-otp').click();
     await expect(page.getByTestId('personal-empty')).toBeVisible({ timeout: 15_000 });
 
-    await page.getByRole('button', { name: '← חזרה' }).click();
+    await page.getByRole('button', { name: 'חזרה' }).click();
     await expect(page.getByTestId('landing-page')).toBeVisible();
   });
 });
@@ -96,11 +96,7 @@ test.describe('Public booking — functionality & correct info', () => {
   test('daily flow validates contact details before reserve', async ({ page }) => {
     await enterBookingFromLanding(page);
     await page.getByRole('heading', { name: 'השכרה יומית חד-פעמית' }).click();
-    await expect(page.getByText(/בחרי תאריך ליום השכרה מלא/)).toBeVisible();
-
-    // בוחרים תאריך חול קרוב
-    const dateInput = page.locator('input[type="date"]');
-    await expect(dateInput).toBeVisible();
+    await expect(page.getByTestId('availability-calendar')).toBeVisible();
 
     const pickWeekday = () => {
       const d = new Date();
@@ -112,7 +108,7 @@ test.describe('Public booking — functionality & correct info', () => {
       return `${y}-${m}-${day}`;
     };
 
-    await dateInput.fill(pickWeekday());
+    await pickCalendarShift(page, pickWeekday(), 'full-day');
     await page.getByRole('button', { name: /המשך לפרטים/ }).click();
     await expect(page.getByText('פרטי המזמין/ה')).toBeVisible();
 

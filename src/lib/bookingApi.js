@@ -19,44 +19,44 @@ function errorBlob(error) {
     .toLowerCase();
 }
 
-/** מיפוי שגיאות הזמנה / עדכון משבצת להודעות ברורות למשתמשת */
+/** מיפוי שגיאות הזמנה / עדכון משבצת להודעות ברורות */
 export function mapBookingError(error) {
   const raw = errorBlob(error);
 
   if (/raise option already specified/.test(raw)) {
-    return 'לא ניתן לשמור את המשבצת כרגע. נסי תאריך או משמרת אחרת, או רענני וראי אם המשבצת פנויה.';
+    return 'לא ניתן לשמור את המשבצת כרגע. נסו תאריך או משמרת אחרת, או רעננו וראו אם המשבצת פנויה.';
   }
   if (raw.includes(SLOT_ALREADY_BOOKED) || raw.includes('already booked')) {
-    return 'יש כבר הזמנה פעילה באותו יום/משמרת. שני תאריך או משמרת, או בטלי את ההזמנה החופפת.';
+    return 'יש כבר הזמנה פעילה באותו יום/משמרת. שנו תאריך או משמרת, או בטלו את ההזמנה החופפת.';
   }
   if (raw.includes(SLOT_BLOCKED)) {
-    return 'המועד הזה חסום ביומן. שני תאריך/משמרת, או הסירי את החסימה בלשונית «חסימת משמרות».';
+    return 'המועד הזה חסום ביומן. שנו תאריך/משמרת, או הסירו את החסימה בלשונית «חסימת משמרות».';
   }
   if (raw.includes('invalid_shift')) {
-    return 'בחרי משמרת תקינה: בוקר, אחה״צ או יום מלא.';
+    return 'בחרו משמרת תקינה: בוקר, אחה״צ או יום מלא.';
   }
   if (/unauthorized_invalid_api_key|invalid.?api.?key|no api key/.test(raw)) {
-    return 'חיבור למערכת נכשל. נסי לרענן את העמוד. אם זה נמשך — פני למנהלת הקליניקה.';
+    return 'חיבור למערכת נכשל. נסו לרענן את העמוד. אם זה נמשך — פנו למנהלת הקליניקה.';
   }
   if (/jwt expired|session.?expired|not authenticated|invalid.?jwt/.test(raw)) {
-    return 'פג תוקף ההתחברות. התחברי מחדש והמשיכי.';
+    return 'פג תוקף ההתחברות. התחברו מחדש והמשיכו.';
   }
   if (/row-level security|rls|permission denied|42501/.test(raw)) {
-    return 'אין הרשאה לבצע את הפעולה הזו. אם את מנהלת — התחברי מחדש.';
+    return 'אין הרשאה לבצע את הפעולה הזו. אם אתם מנהלים — התחברו מחדש.';
   }
   if (/failed to fetch|networkerror|network request failed|timeout|econnrefused/.test(raw)) {
-    return 'אין חיבור יציב לשרת. בדקי אינטרנט ונסי שוב.';
+    return 'אין חיבור יציב לשרת. בדקו אינטרנט ונסו שוב.';
   }
   if (/check constraint|23514|22p02|invalid input syntax/.test(raw)) {
-    return 'חלק מהפרטים לא תקינים. בדקי תאריך, משמרת וסכום.';
+    return 'חלק מהפרטים לא תקינים. בדקו תאריך, משמרת וסכום.';
   }
   if (/duplicate key|23505/.test(raw)) {
-    return 'נראה שהפעולה כבר בוצעה. רענני את הרשימה לפני ניסיון נוסף.';
+    return 'נראה שהפעולה כבר בוצעה. רעננו את הרשימה לפני ניסיון נוסף.';
   }
 
   const msg = (error?.message || '').trim();
   if (!msg || /^(error|exception|p0001|xx000)\b/i.test(msg) || /raise option|sqlstate|postgres/i.test(msg)) {
-    return 'משהו השתבש בשמירה. נסי שוב בעוד רגע.';
+    return 'משהו השתבש בשמירה. נסו שוב בעוד רגע.';
   }
   return msg;
 }
@@ -64,22 +64,28 @@ export function mapBookingError(error) {
 /** מיפוי שגיאות OTP לאזור אישי */
 export function mapPersonalOtpError(error) {
   const raw = errorBlob(error);
-  if (/phone.?logins?.?are.?disabled|unsupported.?phone|sms.?provider|twilio/i.test(raw)) {
-    return 'שליחת קוד SMS עדיין לא מופעלת במערכת. פני למנהלת להפעלת אימות טלפון בסופבייס.';
+  if (/21608|compliance.?profile|unverified.?numbers|verified.?caller/i.test(raw)) {
+    return 'Twilio חוסם שליחה למספר זה. יש לאמת את המספר ב־Verified Caller IDs, או לאשר Primary Compliance Profile ב־Trust Hub.';
+  }
+  if (/sms_send_failed|error sending confirmation otp/i.test(raw)) {
+    return 'שליחת ה־SMS נכשלה אצל ספק ה־SMS (Twilio). בדקו אימות מספר / Compliance Profile וחזרו שוב.';
+  }
+  if (/phone.?logins?.?are.?disabled|unsupported.?phone|sms.?provider.?not.?configured/i.test(raw)) {
+    return 'שליחת קוד SMS עדיין לא מופעלת במערכת. פנו למנהלת להפעלת אימות טלפון בסופבייס.';
   }
   if (/rate.?limit|too.?many|over.?sms|sms.?sending/i.test(raw)) {
-    return 'נשלחו יותר מדי קודים. המתיני כדקה ונסי שוב.';
+    return 'נשלחו יותר מדי קודים. המתינו כדקה ונסו שוב.';
   }
   if (/invalid.?otp|otp.?expired|token.?(has.?expired|is.?invalid)|code.?invalid|expired.?otp|otp_expired/i.test(raw)) {
-    return 'הקוד שגוי או שפג תוקפו. בקשי קוד חדש ונסי שוב.';
+    return 'הקוד שגוי או שפג תוקפו. בקשו קוד חדש ונסו שוב.';
   }
   if (/not_authenticated|42501/.test(raw)) {
     return 'יש לאמת את מספר הטלפון לפני הצגת ההזמנות.';
   }
   if (/failed to fetch|networkerror|timeout/i.test(raw)) {
-    return 'אין חיבור יציב. בדקי אינטרנט ונסי שוב.';
+    return 'אין חיבור יציב. בדקו אינטרנט ונסו שוב.';
   }
-  return mapBookingError(error) || 'שליחת או אימות הקוד נכשלו. נסי שוב.';
+  return mapBookingError(error) || 'שליחת או אימות הקוד נכשלו. נסו שוב.';
 }
 
 /** מיפוי שגיאות התחברות מנהלת */
@@ -87,22 +93,22 @@ export function mapAuthError(error) {
   const raw = errorBlob(error);
 
   if (/unauthorized_invalid_api_key|invalid.?api.?key/.test(raw)) {
-    return 'חיבור למערכת נכשל. רענני את העמוד או בדקי הגדרות סביבה.';
+    return 'חיבור למערכת נכשל. רעננו את העמוד או בדקו הגדרות סביבה.';
   }
   if (/invalid.?login|invalid.?credentials|email.?not.?confirmed|user not found/.test(raw)) {
-    return 'הדואר האלקטרוני או הסיסמה לא נכונים. נסי שוב.';
+    return 'הדואר האלקטרוני או הסיסמה לא נכונים. נסו שוב.';
   }
   if (/too many requests|rate.?limit/.test(raw)) {
-    return 'יותר מדי ניסיונות. המתיני כמה דקות ונסי שוב.';
+    return 'יותר מדי ניסיונות. המתינו כמה דקות ונסו שוב.';
   }
   if (/failed to fetch|networkerror|timeout/.test(raw)) {
-    return 'אין חיבור יציב. בדקי אינטרנט ונסי שוב.';
+    return 'אין חיבור יציב. בדקו אינטרנט ונסו שוב.';
   }
 
-  return 'לא הצלחנו להתחבר. בדקי דואר אלקטרוני וסיסמה ונסי שוב.';
+  return 'לא הצלחנו להתחבר. בדקו דואר אלקטרוני וסיסמה ונסו שוב.';
 }
 
-const GENERIC_BOOKING_FALLBACK = 'משהו השתבש בשמירה. נסי שוב בעוד רגע.';
+const GENERIC_BOOKING_FALLBACK = 'משהו השתבש בשמירה. נסו שוב בעוד רגע.';
 
 /** מיפוי כללי לפעולות אדמין (מחירים / חסימות / טעינה) */
 export function mapAdminError(error, fallback = 'הפעולה נכשלה') {

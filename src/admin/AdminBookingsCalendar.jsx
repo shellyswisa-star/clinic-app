@@ -172,7 +172,7 @@ export default function AdminBookingsCalendar({
                     <button
                       key={booking.id}
                       type="button"
-                      title="לחצי לעריכת ההזמנה"
+                      title="לחצו לעריכת ההזמנה"
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedDay(key);

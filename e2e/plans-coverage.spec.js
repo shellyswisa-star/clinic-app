@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { enterBookingFromLanding } from './helpers/publicFlow.js';
+import { enterBookingFromLanding, pickCalendarShift } from './helpers/publicFlow.js';
 
 function nextWeekdayIso(offsetDays = 2) {
   const d = new Date();
@@ -54,11 +54,10 @@ test.describe('All rental plans — schedule & pricing', () => {
     await expect(page.getByText(/משמרת 6 ש׳ = 360/)).toBeVisible();
 
     await page.getByRole('heading', { name: 'השכרה שעתית גמישה' }).click();
-    await page.locator('input[type="date"]').fill(nextWeekdayIso(2));
-    await expect(page.getByRole('button', { name: /08:00 - 14:00/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /14:00 - 20:00/ })).toBeVisible();
-
-    await page.getByRole('button', { name: /08:00 - 14:00/ }).click();
+    await expect(page.getByTestId('availability-calendar')).toBeVisible();
+    const dateIso = nextWeekdayIso(2);
+    await pickCalendarShift(page, dateIso, 'morning');
+    await expect(page.getByTestId(`cal-day-${dateIso}`).getByTestId('cal-shift-afternoon')).toBeVisible();
     await page.getByRole('button', { name: /המשך לפרטים/ }).click();
     await expect(page.getByText('פרטי המזמין/ה')).toBeVisible();
     await expect(page.getByText('סה"כ לתשלום:').locator('..')).toContainText('360');
@@ -68,8 +67,7 @@ test.describe('All rental plans — schedule & pricing', () => {
     await mockRestEmpty(page);
     await enterBookingFromLanding(page);
     await page.getByRole('heading', { name: /מפגש שבועי/ }).click();
-    await page.locator('input[type="date"]').fill(nextWeekdayIso(3));
-    await page.getByRole('button', { name: /08:00 - 14:00/ }).click();
+    await pickCalendarShift(page, nextWeekdayIso(3), 'morning');
     await page.getByRole('button', { name: /המשך לפרטים/ }).click();
     await expect(page.getByText(/4 תאריכי הפעילות/)).toBeVisible();
   });
@@ -114,6 +112,7 @@ test.describe('All rental plans — schedule & pricing', () => {
   test('daily full-day hours show 08:00-20:00', async ({ page }) => {
     await enterBookingFromLanding(page);
     await page.getByRole('heading', { name: 'השכרה יומית חד-פעמית' }).click();
+    await pickCalendarShift(page, nextWeekdayIso(2), 'full-day');
     await expect(page.getByText(/08:00 - 20:00|08:00–20:00/)).toBeVisible();
   });
 });

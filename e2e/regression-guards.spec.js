@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { enterBookingFromLanding } from './helpers/publicFlow.js';
+import { enterBookingFromLanding, pickCalendarShift } from './helpers/publicFlow.js';
 
 function nextWeekdayIso(offsetDays = 2) {
   const d = new Date();
@@ -68,8 +68,7 @@ test.describe('Regression guards', () => {
     await enterBookingFromLanding(page);
     await page.getByRole('heading', { name: 'השכרה יומית חד-פעמית' }).click();
 
-    const dateInput = page.locator('input[type="date"]');
-    await dateInput.fill(nextWeekdayIso(2));
+    await pickCalendarShift(page, nextWeekdayIso(2), 'full-day');
     await page.getByRole('button', { name: /המשך לפרטים/ }).click();
     await expect(page.getByText('פרטי המזמין/ה')).toBeVisible();
 
@@ -97,12 +96,11 @@ test.describe('Regression guards', () => {
   test('back navigation from details does not leave ghost paid state in UI', async ({ page }) => {
     await enterBookingFromLanding(page);
     await page.getByRole('heading', { name: 'השכרה יומית חד-פעמית' }).click();
-    const dateInput = page.locator('input[type="date"]');
-    await dateInput.fill(nextWeekdayIso(3));
+    await pickCalendarShift(page, nextWeekdayIso(3), 'full-day');
     await page.getByRole('button', { name: /המשך לפרטים/ }).click();
     await expect(page.getByText('פרטי המזמין/ה')).toBeVisible();
-    await page.getByRole('button', { name: /חזרה לבחירת זמנים/ }).click();
-    await expect(page.getByText(/בחרי תאריך ליום השכרה מלא/)).toBeVisible();
+    await page.getByRole('button', { name: 'חזרה' }).click();
+    await expect(page.getByTestId('availability-calendar')).toBeVisible();
     await expect(page.getByText('תשלום מאובטח')).toHaveCount(0);
   });
 });

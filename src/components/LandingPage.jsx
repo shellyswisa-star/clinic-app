@@ -158,7 +158,7 @@ export default function LandingPage({ onStartBooking, onOpenPersonalArea }) {
 
         <div className="landing-section landing-section-d3 pt-4 border-t border-[#e8dfd3] space-y-4">
           <p className="text-sm text-[#735e58] text-right leading-relaxed">
-            מוכנה לשריין משמרת? בחרי מסלול — או כתבי בוואטסאפ אם יש שאלה לפני כן.
+            מוכנים לשריין משמרת? בחרו מסלול — או כתבו בוואטסאפ אם יש שאלה לפני כן.
           </p>
           <CtaGroup onStartBooking={onStartBooking} whatsappUrl={whatsappUrl} stacked />
         </div>

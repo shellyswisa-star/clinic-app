@@ -105,7 +105,7 @@ export default function AdminDashboard({ session, onLogout }) {
     return {
       ok: false,
       message:
-        'לא ניתן לעדכן: התאריך והמשמרת האלה כבר תפוסים בהזמנה אחרת (כולל מועד אחר באותה סדרה). בחרי יום אחר.',
+        'לא ניתן לעדכן: התאריך והמשמרת האלה כבר תפוסים בהזמנה אחרת (כולל מועד אחר באותה סדרה). בחרו יום אחר.',
     };
   };
 
@@ -277,7 +277,7 @@ export default function AdminDashboard({ session, onLogout }) {
 
       if (updateError) throw updateError;
       if (!updated?.id) {
-        throw new Error('העדכון לא נשמר. רענני את הרשימה ונסי שוב.');
+        throw new Error('העדכון לא נשמר. רעננו את הרשימה ונסו שוב.');
       }
       if (dateChanged && updated.selected_date !== nextDate) {
         throw new Error(
@@ -363,7 +363,7 @@ export default function AdminDashboard({ session, onLogout }) {
         .maybeSingle();
       if (updateError) throw updateError;
       if (!updated?.id) {
-        throw new Error('התאריך לא עודכן. רענני ונסי שוב.');
+        throw new Error('התאריך לא עודכן. רעננו ונסו שוב.');
       }
       if (updated.selected_date !== normalized) {
         throw new Error(

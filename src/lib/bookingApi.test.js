@@ -50,9 +50,18 @@ describe('mapAdminError', () => {
 });
 
 describe('mapPersonalOtpError', () => {
-  it('maps phone provider / Twilio not configured', () => {
+  it('maps phone provider not configured without swallowing Twilio send errors', () => {
     expect(mapPersonalOtpError({ message: 'Phone logins are disabled' })).toMatch(/SMS|סופבייס/);
-    expect(mapPersonalOtpError({ message: 'Unsupported phone provider twilio' })).toMatch(/SMS|סופבייס/);
+    expect(mapPersonalOtpError({ message: 'sms provider not configured' })).toMatch(/SMS|סופבייס/);
+  });
+
+  it('maps Twilio compliance / send failures clearly', () => {
+    expect(
+      mapPersonalOtpError({
+        code: 'sms_send_failed',
+        message: 'Error sending confirmation OTP: 21608 Primary Compliance Profile',
+      }),
+    ).toMatch(/Twilio|Compliance|Caller/);
   });
 
   it('maps rate limit, invalid OTP, and auth gaps', () => {
