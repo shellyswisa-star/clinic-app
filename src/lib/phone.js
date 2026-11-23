@@ -7,6 +7,14 @@ export function normalizePhoneDigits(phone) {
   return digits;
 }
 
+/** המרה ל־E.164 לאימות SMS בסופבייס (+972...) */
+export function toE164Israel(phone) {
+  const local = normalizePhoneDigits(phone);
+  if (!local || local.length < 9) return null;
+  if (local.startsWith('0')) return `+972${local.slice(1)}`;
+  return `+${local}`;
+}
+
 export function phonesMatch(a, b) {
   const na = normalizePhoneDigits(a);
   const nb = normalizePhoneDigits(b);

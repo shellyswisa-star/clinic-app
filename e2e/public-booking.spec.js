@@ -14,22 +14,58 @@ test.describe('Landing page', () => {
     await expect(page.getByText('בחירת מסלול השכרה')).toHaveCount(0);
   });
 
-  test('opens personal area from landing and validates phone', async ({ page }) => {
+  test('opens personal area and completes OTP flow with mocks', async ({ page }) => {
+    await page.route('**/auth/v1/otp**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ messageId: 'mock-otp' }),
+      });
+    });
+    await page.route('**/auth/v1/verify**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          access_token: 'mock-access',
+          token_type: 'bearer',
+          expires_in: 3600,
+          refresh_token: 'mock-refresh',
+          user: {
+            id: '00000000-0000-4000-8000-000000000099',
+            phone: '+972501234567',
+            role: 'authenticated',
+            app_metadata: {},
+            user_metadata: {},
+            aud: 'authenticated',
+          },
+        }),
+      });
+    });
+    await page.route('**/rest/v1/rpc/get_my_bookings**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    });
+
     await page.goto('/');
     await page.getByTestId('landing-cta-personal').click();
     await expect(page.getByTestId('personal-area')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'האזור האישי' })).toBeVisible();
 
-    await page.getByTestId('personal-lookup').click();
+    await page.getByTestId('personal-send-otp').click();
     await expect(page.getByTestId('personal-error')).toContainText(/טלפון/);
 
     await page.getByTestId('personal-phone').fill('0501234567');
-    await page.getByTestId('personal-lookup').click();
-    // או רשימה או הודעת ריק — לא נשארים על שגיאת ולידציה
-    await expect(page.getByTestId('personal-error')).toHaveCount(0, { timeout: 15_000 });
-    await expect(
-      page.getByTestId('personal-results').or(page.getByTestId('personal-empty')),
-    ).toBeVisible({ timeout: 15_000 });
+    await page.getByTestId('personal-send-otp').click();
+    await expect(page.getByTestId('personal-code-form')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('personal-notice')).toContainText(/SMS|קוד/);
+
+    await page.getByTestId('personal-otp').fill('123456');
+    await page.getByTestId('personal-verify-otp').click();
+    await expect(page.getByTestId('personal-empty')).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole('button', { name: '← חזרה' }).click();
     await expect(page.getByTestId('landing-page')).toBeVisible();

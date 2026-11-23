@@ -61,6 +61,27 @@ export function mapBookingError(error) {
   return msg;
 }
 
+/** מיפוי שגיאות OTP לאזור אישי */
+export function mapPersonalOtpError(error) {
+  const raw = errorBlob(error);
+  if (/phone.?logins?.?are.?disabled|unsupported.?phone|sms.?provider|twilio/i.test(raw)) {
+    return 'שליחת קוד SMS עדיין לא מופעלת במערכת. פני למנהלת להפעלת אימות טלפון בסופבייס.';
+  }
+  if (/rate.?limit|too.?many|over.?sms|sms.?sending/i.test(raw)) {
+    return 'נשלחו יותר מדי קודים. המתיני כדקה ונסי שוב.';
+  }
+  if (/invalid.?otp|otp.?expired|token.?(has.?expired|is.?invalid)|code.?invalid|expired.?otp|otp_expired/i.test(raw)) {
+    return 'הקוד שגוי או שפג תוקפו. בקשי קוד חדש ונסי שוב.';
+  }
+  if (/not_authenticated|42501/.test(raw)) {
+    return 'יש לאמת את מספר הטלפון לפני הצגת ההזמנות.';
+  }
+  if (/failed to fetch|networkerror|timeout/i.test(raw)) {
+    return 'אין חיבור יציב. בדקי אינטרנט ונסי שוב.';
+  }
+  return mapBookingError(error) || 'שליחת או אימות הקוד נכשלו. נסי שוב.';
+}
+
 /** מיפוי שגיאות התחברות מנהלת */
 export function mapAuthError(error) {
   const raw = errorBlob(error);

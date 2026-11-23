@@ -3,6 +3,7 @@ import {
   mapAdminError,
   mapAuthError,
   mapBookingError,
+  mapPersonalOtpError,
   SLOT_ALREADY_BOOKED,
   SLOT_BLOCKED,
 } from './bookingApi';
@@ -45,5 +46,18 @@ describe('mapAdminError', () => {
   it('reuses booking mappings and custom fallbacks', () => {
     expect(mapAdminError({ message: SLOT_ALREADY_BOOKED })).toMatch(/הזמנה פעילה|משמרת/);
     expect(mapAdminError({}, 'טעינה נכשלה')).toBe('טעינה נכשלה');
+  });
+});
+
+describe('mapPersonalOtpError', () => {
+  it('maps phone provider / Twilio not configured', () => {
+    expect(mapPersonalOtpError({ message: 'Phone logins are disabled' })).toMatch(/SMS|סופבייס/);
+    expect(mapPersonalOtpError({ message: 'Unsupported phone provider twilio' })).toMatch(/SMS|סופבייס/);
+  });
+
+  it('maps rate limit, invalid OTP, and auth gaps', () => {
+    expect(mapPersonalOtpError({ message: 'sms_send_rate_limit' })).toMatch(/יותר מדי/);
+    expect(mapPersonalOtpError({ message: 'Token has expired or is invalid' })).toMatch(/קוד שגוי|תוקף/);
+    expect(mapPersonalOtpError({ message: 'not_authenticated', code: '42501' })).toMatch(/לאמת/);
   });
 });

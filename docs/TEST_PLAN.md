@@ -45,10 +45,10 @@ npm run test:ci        # כמו ב-CI
 - [x] E2E מנהלת: הזמנה אחרונה + סינון תאריך
 - [x] E2E מנהלת: טאבי מחירים + חסימת משמרות
 - [x] עמוד נחיתה לפני מסלולים + CTA להזמנה / וואטסאפ / אזור אישי
-- [x] אזור אישי: חיפוש לפי טלפון + קיבוץ סדרות (צפייה בלבד)
+- [x] אזור אישי: OTP ב־SMS (Supabase Phone Auth) + קיבוץ סדרות (צפייה בלבד)
 - [x] סדרות הזמנה (`series_id`) + פאנל סדרה באדמין + קיבוץ ברשימה
 - [ ] **ידני:** עריכת תאריך למועד תפוס באדמין → שגיאה בלי הצלחה מדומה
-- [ ] **עתידי:** OTP לאזור אישי (במקום טלפון בלבד)
+- [ ] **ידני:** OTP אמיתי אחרי חיבור Twilio בסופבייס
 
 ### 3) משאבים / רקע / תצוגה
 - [x] תמונת קליניקה מוצגת; גם בכשל העמוד נשאר שמיש
@@ -107,7 +107,14 @@ npm run test:ci        # כמו ב-CI
 2. `supabase/booking-series.sql`
 3. `supabase/admin-edit-bypass-blocks.sql`
 4. `supabase/series-hold-slots.sql`
-5. `supabase/personal-area-lookup.sql` — חיפוש אזור אישי לפי טלפון
+5. `supabase/personal-area-lookup.sql` — חיפוש אזור אישי לפי טלפון (legacy)
+6. `supabase/personal-area-otp.sql` — `get_my_bookings()` אחרי Phone OTP
+
+### הפעלת OTP בסופבייס
+1. Authentication → Providers → **Phone** → Enable
+2. לחבר **Twilio** (Account SID, Auth Token, Messaging Service / From number)
+3. להריץ `personal-area-otp.sql`
+4. לבדוק באזור האישי: טלפון → SMS → קוד → הזמנות
 
 ## מה עדיין לא אוטומטי (backlog)
 
@@ -115,4 +122,4 @@ npm run test:ci        # כמו ב-CI
 2. E2E מקבילי: שני דפדפנים משריינים אותה משמרת (מוודא שרק אחד מצליח)
 3. סליקה אמיתית + מניעת חיוב כפול ברמת ספק התשלום
 4. E2E: ביטול/עריכת הזמנה ספציפית ביומן (דורש seed נתונים)
-5. OTP לאזור אישי / צמצום `public read bookings` אחרי מעבר ל־RPC לזמינות
+5. צמצום `public read bookings` אחרי מעבר ל־RPC לזמינות בלבד
