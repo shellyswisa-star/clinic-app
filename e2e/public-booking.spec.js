@@ -10,7 +10,29 @@ test.describe('Landing page', () => {
     await expect(page.getByText('מה כולל המרחב')).toBeVisible();
     await expect(page.getByText('למי המרחב מיועד')).toBeVisible();
     await expect(page.getByTestId('landing-cta-plans')).toBeVisible();
+    await expect(page.getByTestId('landing-cta-personal')).toBeVisible();
     await expect(page.getByText('בחירת מסלול השכרה')).toHaveCount(0);
+  });
+
+  test('opens personal area from landing and validates phone', async ({ page }) => {
+    await page.goto('/');
+    await page.getByTestId('landing-cta-personal').click();
+    await expect(page.getByTestId('personal-area')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'האזור האישי' })).toBeVisible();
+
+    await page.getByTestId('personal-lookup').click();
+    await expect(page.getByTestId('personal-error')).toContainText(/טלפון/);
+
+    await page.getByTestId('personal-phone').fill('0501234567');
+    await page.getByTestId('personal-lookup').click();
+    // או רשימה או הודעת ריק — לא נשארים על שגיאת ולידציה
+    await expect(page.getByTestId('personal-error')).toHaveCount(0, { timeout: 15_000 });
+    await expect(
+      page.getByTestId('personal-results').or(page.getByTestId('personal-empty')),
+    ).toBeVisible({ timeout: 15_000 });
+
+    await page.getByRole('button', { name: '← חזרה' }).click();
+    await expect(page.getByTestId('landing-page')).toBeVisible();
   });
 });
 

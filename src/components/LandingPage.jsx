@@ -54,7 +54,7 @@ function CtaGroup({ onStartBooking, whatsappUrl, stacked = false }) {
 /**
  * עמוד נחיתה לפני בחירת מסלול — מותג, מרחב, למי מתאים, פרטים מעשיים.
  */
-export default function LandingPage({ onStartBooking }) {
+export default function LandingPage({ onStartBooking, onOpenPersonalArea }) {
   const phoneDigits = String(CLINIC_INFO.whatsappPhone || '').replace(/\D/g, '');
   const whatsappUrl = phoneDigits
     ? `https://wa.me/${phoneDigits}?text=${encodeURIComponent('היי, אשמח לשמוע עוד על השכרת המרחב בשורשים')}`
@@ -84,6 +84,19 @@ export default function LandingPage({ onStartBooking }) {
             {CLINIC_INFO.name}
           </span>
         </div>
+
+        {onOpenPersonalArea && (
+          <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-20">
+            <button
+              type="button"
+              onClick={onOpenPersonalArea}
+              data-testid="landing-cta-personal"
+              className="inline-flex items-center gap-1.5 rounded-full bg-white/15 backdrop-blur-sm border border-white/35 px-3.5 py-2 text-xs sm:text-sm font-semibold text-[#faf4eb] hover:bg-white/25 cursor-pointer shadow-sm"
+            >
+              האזור האישי
+            </button>
+          </div>
+        )}
 
         <div className="relative z-10 min-h-[100svh] flex flex-col justify-end px-5 sm:px-10 pb-12 sm:pb-16 pt-24 max-w-3xl mr-auto ml-auto">
           <h1 className="sr-only">{CLINIC_INFO.name}</h1>

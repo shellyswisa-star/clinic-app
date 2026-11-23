@@ -26,6 +26,7 @@ import {
 } from './lib/schedule';
 import AlertBanner from './components/AlertBanner.jsx';
 import LandingPage from './components/LandingPage.jsx';
+import PersonalArea from './components/PersonalArea.jsx';
 
 export default function ClinicBookingApp() {
   const [selectedPlan, setSelectedPlan] = useState(null);
@@ -39,7 +40,7 @@ export default function ClinicBookingApp() {
   const [paymentMethod, setPaymentMethod] = useState('credit');
   const [currentBookingId, setCurrentBookingId] = useState(null);
   const [currentBookingIds, setCurrentBookingIds] = useState([]);
-  // 0 = נחיתה, 1 = מסלולים, 2 = מועד, 3 = פרטים, 4 = תשלום, 5 = הצלחה
+  // 0 = נחיתה, 1 = מסלולים, 2 = מועד, 3 = פרטים, 4 = תשלום, 5 = הצלחה, 6 = אזור אישי
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState({ name: '', phone: '', profession: '', cardNumber: '', expiry: '', cvv: '' });
   
@@ -351,7 +352,16 @@ export default function ClinicBookingApp() {
   const todayStr = new Date().toISOString().split('T')[0];
 
   if (step === 0) {
-    return <LandingPage onStartBooking={() => setStep(1)} />;
+    return (
+      <LandingPage
+        onStartBooking={() => setStep(1)}
+        onOpenPersonalArea={() => setStep(6)}
+      />
+    );
+  }
+
+  if (step === 6) {
+    return <PersonalArea onBack={() => setStep(0)} />;
   }
 
   return (
@@ -387,7 +397,7 @@ export default function ClinicBookingApp() {
                 onClick={() => setStep(0)}
                 className="text-xs font-semibold text-[#8c5e47] hover:underline cursor-pointer"
               >
-                ← חזרה לעמוד הנחיתה
+                ← חזרה
               </button>
               <div className="text-right">
                 <h2 className="text-xl font-bold text-[#5c4a45] title-handwritten tracking-wide">בחירת מסלול השכרה</h2>
