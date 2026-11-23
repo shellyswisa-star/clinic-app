@@ -68,6 +68,7 @@ test.describe('All rental plans — schedule & pricing', () => {
     await enterBookingFromLanding(page);
     await page.getByRole('heading', { name: /מפגש שבועי/ }).click();
     await pickCalendarShift(page, nextWeekdayIso(3), 'morning');
+    await expect(page.getByTestId('session-series-preview')).toBeVisible();
     await page.getByRole('button', { name: /המשך לפרטים/ }).click();
     await expect(page.getByText(/4 תאריכי הפעילות/)).toBeVisible();
   });

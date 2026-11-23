@@ -5,6 +5,7 @@ import {
   formatMonthRangeHe,
   getMonthlyConcreteDates,
   getSessionDates,
+  isSessionSeriesTaken,
 } from './schedule';
 
 describe('schedule windows', () => {
@@ -23,6 +24,14 @@ describe('getSessionDates', () => {
       '2026-12-07',
       '2026-12-14',
     ]);
+  });
+});
+
+describe('isSessionSeriesTaken', () => {
+  it('is taken if any of the 4 weekly slots is taken', () => {
+    const taken = (date) => date === '2026-12-07';
+    expect(isSessionSeriesTaken('2026-11-23', 'morning', taken)).toBe(true);
+    expect(isSessionSeriesTaken('2026-11-23', 'morning', () => false)).toBe(false);
   });
 });
 

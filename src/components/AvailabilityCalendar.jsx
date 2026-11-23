@@ -29,9 +29,12 @@ export default function AvailabilityCalendar({
   minDateStr,
   selectedDate = '',
   selectedShift = '',
+  /** תאריכים נוספים לסימון (למשל 4 שבועות במפגש שבועי) */
+  highlightDates = [],
   isShiftTaken,
   onSelect,
 }) {
+  const highlightSet = useMemo(() => new Set(highlightDates || []), [highlightDates]);
   const today = minDateStr || toDateKey(new Date());
   const [cursor, setCursor] = useState(() => startOfMonth(parseIso(today)));
 
@@ -115,6 +118,7 @@ export default function AvailabilityCalendar({
             const isPast = key < today;
             const closed = isWeekend || isPast || !inMonth;
             const isSelectedDay = selectedDate === key;
+            const inSeries = highlightSet.has(key);
 
             return (
               <div
@@ -122,14 +126,17 @@ export default function AvailabilityCalendar({
                 data-testid={inMonth && !isWeekend ? `cal-day-${key}` : undefined}
                 className={`min-h-[5.5rem] sm:min-h-[6.5rem] border-t border-l border-[#eee4d8] p-1 sm:p-1.5 flex flex-col gap-1 ${
                   !inMonth ? 'bg-[#f3efe8]/50 text-[#b8a096]' : 'bg-[#fcfaf6]'
-                } ${isSelectedDay ? 'ring-2 ring-inset ring-[#8c5e47]' : ''}`}
+                } ${isSelectedDay ? 'ring-2 ring-inset ring-[#8c5e47]' : inSeries ? 'ring-2 ring-inset ring-[#c4a08a] bg-[#f5ebe0]/70' : ''}`}
               >
                 <div
                   className={`text-[11px] sm:text-xs font-bold px-0.5 ${
-                    isSelectedDay ? 'text-[#8c5e47]' : 'text-[#5c4a45]'
+                    isSelectedDay || inSeries ? 'text-[#8c5e47]' : 'text-[#5c4a45]'
                   }`}
                 >
                   {date.getDate()}
+                  {inSeries && !isSelectedDay && (
+                    <span className="mr-1 text-[9px] font-semibold text-[#8c5e47]">· סדרה</span>
+                  )}
                 </div>
 
                 {closed ? (
@@ -189,6 +196,9 @@ export default function AvailabilityCalendar({
 
       <p className="text-[11px] text-[#8c746c] text-right">
         הקליניקה פתוחה בימים א׳–ה׳. לחצו על משמרת פנויה ביומן כדי לבחור אותה.
+        {highlightDates?.length > 1
+          ? ' במפגש שבועי מסומנים כל 4 המועדים בסדרה, ומשמרת נחשבת תפוסה אם אחד מהם תפוס.'
+          : ''}
       </p>
     </div>
   );

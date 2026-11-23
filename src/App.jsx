@@ -23,6 +23,7 @@ import {
   formatMonthRangeHe,
   getMonthlyConcreteDates,
   getSessionDates as buildSessionDates,
+  isSessionSeriesTaken,
 } from './lib/schedule';
 import AlertBanner from './components/AlertBanner.jsx';
 import AvailabilityCalendar from './components/AvailabilityCalendar.jsx';
@@ -368,10 +369,28 @@ export default function ClinicBookingApp() {
   // שלב 2: יומן זמינות במסך מלא (שעתי / שבועי / יומי)
   if (step === 2 && selectedPlan && selectedPlan.id !== 'monthly') {
     const calendarMode = selectedPlan.id === 'daily' ? 'full-day' : 'partial';
+    const isSession = selectedPlan.id === 'session';
+    const sessionDates =
+      isSession && selectedDate ? buildSessionDates(selectedDate) : [];
+    const sessionConflict =
+      isSession &&
+      selectedDate &&
+      selectedShift &&
+      isSessionSeriesTaken(selectedDate, selectedShift, isShiftTaken);
+
+    const calendarIsTaken = (dateStr, shiftStr) => {
+      if (isSession) {
+        return isSessionSeriesTaken(dateStr, shiftStr, isShiftTaken);
+      }
+      return isShiftTaken(dateStr, shiftStr);
+    };
+
     const canContinue =
       selectedPlan.id === 'daily'
         ? Boolean(selectedDate) && !isShiftTaken(selectedDate, 'full-day')
-        : Boolean(selectedDate && selectedShift);
+        : isSession
+          ? Boolean(selectedDate && selectedShift) && !sessionConflict
+          : Boolean(selectedDate && selectedShift);
 
     return (
       <div
@@ -396,7 +415,9 @@ export default function ClinicBookingApp() {
               מסלול נבחר:{' '}
               <span className="font-bold text-[#8c5e47]">{selectedPlan.title}</span>
               {' · '}
-              לחצו על משמרת פנויה ביום הרצוי
+              {isSession
+                ? 'בחירה משריינת 4 משמרות שבועיות רצופות — רק אם כולן פנויות'
+                : 'לחצו על משמרת פנויה ביום הרצוי'}
             </p>
           </div>
 
@@ -405,7 +426,8 @@ export default function ClinicBookingApp() {
             minDateStr={todayStr}
             selectedDate={selectedDate}
             selectedShift={selectedPlan.id === 'daily' ? 'full-day' : selectedShift}
-            isShiftTaken={isShiftTaken}
+            highlightDates={sessionDates}
+            isShiftTaken={calendarIsTaken}
             onSelect={({ dateStr, shiftId }) => {
               setDateErrorMsg('');
               setSelectedDate(dateStr);
@@ -423,10 +445,33 @@ export default function ClinicBookingApp() {
                   {SHIFT_WINDOWS[selectedShift]?.label || selectedShift}
                 </strong>
               </p>
-              {selectedPlan.id === 'session' && (
-                <p className="text-[11px] text-[#8c746c]">
-                  במפגש שבועי ישורינו גם את 3 השבועות הבאים באותו יום ובאותה משמרת.
-                </p>
+              {isSession && sessionDates.length > 0 && (
+                <div className="space-y-2" data-testid="session-series-preview">
+                  <p className="text-[11px] text-[#8c746c]">
+                    4 מועדים שישורינו (אותו יום בשבוע + אותה משמרת):
+                  </p>
+                  <ul className="bg-white border border-[#e8dfd3] rounded-xl divide-y divide-[#eee4d8]">
+                    {sessionDates.map((dateStr) => {
+                      const taken = isShiftTaken(dateStr, selectedShift || 'morning');
+                      return (
+                        <li
+                          key={dateStr}
+                          className={`px-3 py-2 text-xs flex justify-between gap-2 ${
+                            taken ? 'text-red-700 bg-red-50/50' : 'text-[#5c4a45]'
+                          }`}
+                        >
+                          <span>{formatDateHe(dateStr)}</span>
+                          <span className="font-semibold">{taken ? 'תפוס' : 'פנוי'}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  {sessionConflict && (
+                    <AlertBanner tone="error">
+                      אחד ממועדי הסדרה תפוס. בחרו יום או משמרת אחרים.
+                    </AlertBanner>
+                  )}
+                </div>
               )}
               <button
                 type="button"

@@ -52,6 +52,15 @@ export function getSessionDates(startDateStr, count = 4) {
 }
 
 /**
+ * האם סדרת מפגש שבועי (4 שבועות) חסומה במשמרת —
+ * אם אחד מהמועדים תפוס, אי אפשר להתחיל מהתאריך הזה.
+ */
+export function isSessionSeriesTaken(startDateStr, shiftStr, isShiftTakenFn) {
+  if (!startDateStr || !shiftStr || typeof isShiftTakenFn !== 'function') return false;
+  return getSessionDates(startDateStr).some((dateStr) => isShiftTakenFn(dateStr, shiftStr));
+}
+
+/**
  * תאריכים קונקרטיים להשכרה חודשית קבועה.
  * מ־startDateStr (כולל) ועד סוף טווח החודשים — כל הימים בשבוע שנבחרו (א׳–ה׳).
  */
